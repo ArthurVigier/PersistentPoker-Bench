@@ -28,8 +28,12 @@ class HorseEvaluator:
         best_hand: EvaluatedHand | None = None
         
         # Combinatoire stricte : 2 parmi 4 en main, 3 parmi TOUT le contexte public
-        for h2 in itertools.combinations(hole_cards, 2):
-            for c3 in itertools.combinations(community_pool, 3):
+        h_combos = list(itertools.combinations(hole_cards, 2))
+        c_combos = list(itertools.combinations(community_pool, 3))
+        # print(f"[debug] Omaha Showdown: evaluating {len(h_combos) * len(c_combos)} combinations...", flush=True)
+        
+        for h2 in h_combos:
+            for c3 in c_combos:
                 test_cards = h2 + c3
                 current_eval = evaluate_hand(test_cards)
                 if best_hand is None or current_eval.sort_key > best_hand.sort_key:

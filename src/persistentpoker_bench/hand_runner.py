@@ -215,6 +215,7 @@ def run_seeded_hand(
                 },
                 game_variant=hand_state.variant if hand_state.game_mode == "horse_v2" else None,
             )
+            print(f"[debug] Requesting action from {hand_state.players[player_index].name} ({envelope.model_id if 'envelope' in locals() else 'starting...'})", flush=True)
             envelope, memory_result, action = _obtain_action(
                 decision_agents=decision_agents,
                 player_index=player_index,
@@ -224,6 +225,7 @@ def run_seeded_hand(
                 hand_state=hand_state,
                 persistent_pool=persistent_pool,
             )
+            print(f"[debug] {hand_state.players[player_index].name} decided {action.action_type.value} in {envelope.latency_seconds:.2f}s", flush=True)
             apply_action(hand_state, player_index, action)
             transcript.append(
                 {
@@ -261,11 +263,13 @@ def run_seeded_hand(
             continue
 
         if is_betting_round_complete(hand_state):
+            old_street = hand_state.street.value
             if hand_state.game_mode == "horse_v2":
                 from persistentpoker_bench.horse.horse_runner import advance_horse_street
                 advance_horse_street(hand_state, hand_state.deck)
             else:
                 _advance_to_next_street(hand_state, full_board)
+            print(f"[debug] Street advanced: {old_street} -> {hand_state.street.value}", flush=True)
             _notify_street_advanced(observer, hand_state=hand_state, persistent_pool=persistent_pool)
         else:
             break
@@ -275,6 +279,8 @@ def run_seeded_hand(
         while hand_state.street is not Street.SHOWDOWN:
             from persistentpoker_bench.horse.horse_runner import advance_horse_street
             advance_horse_street(hand_state, hand_state.deck)
+            # Important: Clear pending actors when running out the board to avoid infinite prompts
+            hand_state.pending_actor_indices = ()
     else:
         _run_out_board_if_needed(hand_state, full_board)
         
@@ -489,6 +495,7 @@ def _resolve_terminal_hand(
         return ShowdownResult(
             winning_player_indices=(best_player_idx,),
             payouts=tuple(hand_state.pot_total if i == best_player_idx else 0 for i in range(len(hand_state.players))),
+            evaluated_hands={},
             pot_allocations=(),
             tiebreak_events=(),
         )

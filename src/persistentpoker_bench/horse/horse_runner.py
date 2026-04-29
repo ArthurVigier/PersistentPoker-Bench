@@ -9,7 +9,7 @@ from persistentpoker_bench.betting import apply_action, get_legal_actions, is_be
 from persistentpoker_bench.cards import Card, standard_deck
 from persistentpoker_bench.game_state import Action, ActionType, Street
 from persistentpoker_bench.pool import PersistentPool
-from persistentpoker_bench.horse.variants import HorseVariant, HorseStreet
+from persistentpoker_bench.horse.variants import HorseVariant
 from persistentpoker_bench.horse.state import HorseHandState, HorsePlayerState
 
 class HorseRunnerConfig:
@@ -28,7 +28,7 @@ def setup_horse_hand(player_names: list[str], variant: HorseVariant, config: Hor
     players = [HorsePlayerState(name=name, stack=config.starting_stack) for name in player_names]
     state = HorseHandState(
         variant=variant,
-        street=HorseStreet.PREFLOP if variant in (HorseVariant.HOLDEM, HorseVariant.OMAHA_8B) else HorseStreet.THIRD_STREET,
+        street=Street.PREFLOP if variant in (HorseVariant.HOLDEM, HorseVariant.OMAHA_8B) else Street.THIRD_STREET,
         players=players
     )
     
@@ -53,9 +53,6 @@ def determine_bring_in(state: HorseHandState) -> int:
     if not live_players:
         return 0
 
-    best_player_idx = live_players[0].name # Fallback
-    # On Razz, highest card pays bring-in. On Stud, lowest card pays bring-in.
-    # In a full engine, we compare rank and suit. For now, simple rank logic.
     target_idx = 0
     
     if state.variant == HorseVariant.RAZZ:
@@ -82,57 +79,58 @@ def determine_bring_in(state: HorseHandState) -> int:
 def determine_first_actor(state: HorseHandState) -> int:
     """Détermine le premier à parler pour les streets >= 4th Street au Stud/Razz."""
     if state.variant in (HorseVariant.HOLDEM, HorseVariant.OMAHA_8B):
-        # Au flop games, c'est le small blind (ou le premier joueur après le bouton)
-        return (state.button_index + 1) % len(state.players) # Simplifié
+        # Au flop games, c'est le premier joueur actif après le bouton
+        return state._first_active_after(state.button_index)
         
-    # Au Stud, c'est la meilleure main visible qui parle (ou la meilleure main "Razz" visible en Razz)
-    # Pour l'instant, on fallback sur le joueur 0, car l'évaluation des mains partielles est lourde.
-    # L'IA va quand même devoir lire que l'ordre change !
+    # Au Stud, c'est la meilleure main visible qui parle. 
+    # Pour l'instant, on prend simplement le premier joueur actif.
     for i, p in enumerate(state.players):
-        if not p.eliminated and not p.folded:
+        if p.is_active and not p.all_in:
             return i
     return 0
 
 def advance_horse_street(state: HorseHandState, deck: list[Card]):
     """Passe à la prochaine phase de mise et distribue les cartes."""
     if state.variant in (HorseVariant.HOLDEM, HorseVariant.OMAHA_8B):
-        if state.street == HorseStreet.PREFLOP:
+        if state.street == Street.PREFLOP:
             state.community_cards += _deal_cards(deck, 3)
-            state.street = HorseStreet.FLOP
-        elif state.street == HorseStreet.FLOP:
+            state.street = Street.FLOP
+        elif state.street == Street.FLOP:
             state.community_cards += _deal_cards(deck, 1)
-            state.street = HorseStreet.TURN
-        elif state.street == HorseStreet.TURN:
+            state.street = Street.TURN
+        elif state.street == Street.TURN:
             state.community_cards += _deal_cards(deck, 1)
-            state.street = HorseStreet.RIVER
+            state.street = Street.RIVER
         else:
-            state.street = HorseStreet.SHOWDOWN
+            state.street = Street.SHOWDOWN
         state.actor_index = determine_first_actor(state)
-        state.pending_actor_indices = tuple(state._iter_active_from(state.actor_index))
+        # On ne remet en attente que ceux qui PEUVENT agir (pas all-in, pas folded)
+        state.pending_actor_indices = tuple(i for i in state._iter_active_from(state.actor_index) if state.players[i].can_act)
         
     else:
         # Stud Games
-        if state.street == HorseStreet.THIRD_STREET:
+        if state.street == Street.THIRD_STREET:
             for p in state.get_live_players():
                 p.up_cards += _deal_cards(deck, 1)
-            state.street = HorseStreet.FOURTH_STREET
-        elif state.street == HorseStreet.FOURTH_STREET:
+            state.street = Street.FOURTH_STREET
+        elif state.street == Street.FOURTH_STREET:
             for p in state.get_live_players():
                 p.up_cards += _deal_cards(deck, 1)
-            state.street = HorseStreet.FIFTH_STREET
-        elif state.street == HorseStreet.FIFTH_STREET:
+            state.street = Street.FIFTH_STREET
+        elif state.street == Street.FIFTH_STREET:
             for p in state.get_live_players():
                 p.up_cards += _deal_cards(deck, 1)
-            state.street = HorseStreet.SIXTH_STREET
-        elif state.street == HorseStreet.SIXTH_STREET:
+            state.street = Street.SIXTH_STREET
+        elif state.street == Street.SIXTH_STREET:
             for p in state.get_live_players():
                 p.down_cards += _deal_cards(deck, 1) # 7th is down
-            state.street = HorseStreet.SEVENTH_STREET
+            state.street = Street.SEVENTH_STREET
         else:
-            state.street = HorseStreet.SHOWDOWN
+            state.street = Street.SHOWDOWN
         
         state.actor_index = determine_first_actor(state)
-        state.pending_actor_indices = tuple(state._iter_active_from(state.actor_index))
+        # On ne remet en attente que ceux qui PEUVENT agir (pas all-in, pas folded)
+        state.pending_actor_indices = tuple(i for i in state._iter_active_from(state.actor_index) if state.players[i].can_act)
 
 def update_persistent_pool_from_horse(state: HorseHandState, pool: PersistentPool):
     """

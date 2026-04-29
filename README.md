@@ -11,7 +11,7 @@ pinned: false
 
 # PersistentPoker-Bench
 
-PersistentPoker-Bench is an open-source benchmark for evaluating advanced LLM reasoning, memory, and strategic decision-making in a custom multiplayer No-Limit Texas Hold'em environment.
+PersistentPoker-Bench is an open-source benchmark for evaluating advanced LLM reasoning, memory, and strategic decision-making in a custom multiplayer No-Limit environment.
 
 The benchmark combines:
 
@@ -19,12 +19,14 @@ The benchmark combines:
 - A persistent public pool that compounds across hands
 - A memory verification step for model state tracking
 - A deterministic-seed tournament runner with public metrics and dual leaderboards
+- **V2 H.O.R.S.E. Engine**: Dynamic game rule rotation (Hold'em, Omaha 8B, Razz, Stud, Stud 8B)
+- **Survival Mode**: Endless endurance runs ending only upon bankruptcy
 
 ## Status
 
-Current milestone: Phase 4 pre-release workflow.
+Current milestone: Phase 5 (H.O.R.S.E Variant & Agentic Resilience).
 
-The official v1 rules and project architecture live in:
+The official rules and project architecture live in:
 
 - `docs/rules_v1_option_a.md`
 - `docs/architecture.md`
@@ -32,14 +34,22 @@ The official v1 rules and project architecture live in:
 
 ## Core Benchmark Properties
 
-- Game: No-Limit Texas Hold'em
+- Game Modes: `holdem` (V1) or `horse_v2` (V2)
 - Players: 4 by default, configurable from 3 to 6
 - Betting: full no-limit, including all-in and side pots
-- Shared state: persistent public pool carried across hands
+- Shared state: persistent public pool carried across hands (board cards + stud up-cards)
 - Memory check: explicit `believed_pool` verification step
-- Default winner action: continue the pool unless reset is chosen
-- Reproducibility: deterministic seeded hand generation
+- Metacognition: Default winner action is `continue`, but models can tactically choose `reset`
 - Official tracks: `frontier` and `efficiency`
+- Resilience: Relaxed JSON parsing mode for ultra-verbose "Reasoning" models
+
+## Supported Flagship Models (April 2026 Roster)
+
+- **Gemini 3.1 Pro** & **Gemini 3 Flash** (Google)
+- **GPT-5.5** & **GPT-5.4 Mini** (OpenAI)
+- **Grok 4.20 Reasoning** & **Grok 4.1 Fast** (xAI)
+- **Mistral Large latest** & **Mistral Small 4** (Mistral AI)
+- **DeepSeek V4 Pro** (DeepSeek)
 
 ## Roadmap
 
@@ -48,7 +58,7 @@ The official v1 rules and project architecture live in:
 3. Phase 2 - LLM integration through LiteLLM with strict JSON outputs
 4. Phase 3 - tournament orchestration and metrics
 5. Phase 4 - public release assets and demo
-6. Phase 5 - variants and future rule versions
+6. **Phase 5 (Active) - H.O.R.S.E variants, incremental JSONL writing, and Diabolical Survival Mode**
 
 ## Quick Start
 
@@ -68,23 +78,52 @@ persistentpoker-bench models
 persistentpoker-bench models --track frontier
 ```
 
-Run a deterministic local demo with static agents:
+Run a live LiteLLM-backed tournament from JSON config (Incremental writing supported):
 
 ```bash
-persistentpoker-bench demo \
-  --track frontier \
-  --hands 2 \
-  --seeds 20260428,20260429 \
-  --outdir ./artifacts/demo-frontier
+persistentpoker-bench run \
+  --config ./configs/horse_v2_frontier_mistral_2026-04-29.json \
+  --outdir ./artifacts/horse-v2-run
 ```
 
-This writes:
+### V2 H.O.R.S.E Config Example (with relaxed parsing)
 
-- `results.jsonl`
-- `match_summaries.jsonl`
-- `decision_traces.jsonl`
-- `leaderboard.csv`
-- `run_summary.json`
+```json
+{
+  "track": "frontier",
+  "game_mode": "horse_v2",
+  "termination_rule": "hand_limit",
+  "seeds": [20260429],
+  "hand_count": 5,
+  "base_seed": 0,
+  "budget_caps": {
+    "total_cost_cap": 25.0
+  },
+  "lineups": [
+    {
+      "lineup_id": "horse-v2-frontier",
+      "entrants": [
+        {
+          "seat_name": "Mistral Large",
+          "provider": "mistral",
+          "model_id": "mistral-large-latest",
+          "prefer_json_mode": false
+        },
+        {
+          "seat_name": "Gemini 3.1 Pro",
+          "provider": "gemini",
+          "model_id": "gemini-3.1-pro",
+          "extra_kwargs": {
+            "thinking": { "type": "enabled", "budget_tokens": 256 }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+*Note: For Deep Reasoning models (GPT-5.5, Mistral Large, Grok 4.20), `prefer_json_mode: false` is highly recommended to prevent API crashes when the model outputs `<think>` blocks or verbose markdown.*
 
 Play a live terminal session with one or more humans:
 
@@ -96,162 +135,28 @@ persistentpoker-bench play \
   --seed 20260428
 ```
 
-Notes:
-
-- `--human-seats` uses 1-based seat indices
-- non-human seats currently use deterministic passive bots
-- the live renderer shows public state continuously and reveals human hole cards during play
-- tied administrative decisions now use deterministic `d6` roll tie-breaks
-
-Play a mixed human + LiteLLM table from config and write a structured replay:
-
-```bash
-persistentpoker-bench play \
-  --config ./configs/play_mixed.json
-```
-
-Example mixed play config:
-
-```json
-{
-  "seed": 20260428,
-  "hand_count": 2,
-  "replay_out": "./artifacts/play_mixed_replay.json",
-  "players": [
-    {
-      "name": "Alice",
-      "kind": "human"
-    },
-    {
-      "name": "GPT-5.5",
-      "kind": "litellm",
-      "provider": "openai",
-      "model_id": "gpt-5.5",
-      "temperature": 0.0,
-      "max_tokens": 300
-    },
-    {
-      "name": "DeepSeek",
-      "kind": "litellm",
-      "provider": "deepseek",
-      "model_id": "deepseek-v4-pro",
-      "temperature": 0.0,
-      "max_tokens": 300
-    },
-    {
-      "name": "CPU1",
-      "kind": "passive_bot"
-    }
-  ]
-}
-```
-
-Launch the replay web studio:
+Launch the replay web studio (Gradio):
 
 ```bash
 persistentpoker-bench web --host 127.0.0.1 --port 7860
 ```
 
-Ready-to-use configs:
-
-- [configs/play_mixed.json](/Users/robertbadinter/Desktop/Poker-Bench/configs/play_mixed.json)
-- [configs/frontier_live.json](/Users/robertbadinter/Desktop/Poker-Bench/configs/frontier_live.json)
-
 Hugging Face Space readiness:
 
-- Space app entrypoint: [hf_space/app.py](/Users/robertbadinter/Desktop/Poker-Bench/hf_space/app.py)
-- Space dependencies: [requirements.txt](/Users/robertbadinter/Desktop/Poker-Bench/requirements.txt)
-- Space metadata: this root [README.md](/Users/robertbadinter/Desktop/Poker-Bench/README.md) already includes the YAML header expected by Hugging Face Spaces
+- Space app entrypoint: `hf_space/app.py`
+- Space dependencies: `requirements.txt`
 - provider keys should be stored as **Space Secrets**, not hard-coded
-- exact deployment guide: [docs/hf_space_deploy.md](/Users/robertbadinter/Desktop/Poker-Bench/docs/hf_space_deploy.md)
-
-Run a live LiteLLM-backed tournament from JSON config:
-
-```bash
-persistentpoker-bench run \
-  --config ./configs/frontier_live.json \
-  --outdir ./artifacts/frontier-live
-```
-
-Example config:
-
-```json
-{
-  "track": "frontier",
-  "seeds": [20260428, 20260429],
-  "hand_count": 2,
-  "base_seed": 0,
-  "initial_button_index": 0,
-  "budget_caps": {
-    "total_cost_cap": 5.0,
-    "per_provider_cap": {
-      "openai": 2.0
-    },
-    "per_model_cap": {
-      "gpt-5.5": 2.0
-    }
-  },
-  "lineups": [
-    {
-      "lineup_id": "frontier-main",
-      "entrants": [
-        {
-          "seat_name": "P1",
-          "provider": "deepseek",
-          "model_id": "deepseek-v4-pro"
-        },
-        {
-          "seat_name": "P2",
-          "provider": "xai",
-          "model_id": "grok-4.20-reasoning"
-        },
-        {
-          "seat_name": "P3",
-          "provider": "gemini",
-          "model_id": "gemini-3.1-pro-preview"
-        },
-        {
-          "seat_name": "P4",
-          "provider": "openai",
-          "model_id": "gpt-5.5"
-        }
-      ]
-    }
-  ]
-}
-```
 
 ## Release Artifacts
 
 The public workflow now supports:
 
-- deterministic seed-based replays
-- structured replay JSON for local play sessions
-- dual leaderboards: `frontier` and `efficiency`
-- JSONL exports for full results, summaries, and decision traces
-- CSV leaderboard export
+- **Resilient Incremental Logging**: `results.jsonl`, `match_summaries.jsonl`, `decision_traces.jsonl` are written match-by-match to prevent data loss on API timeout.
+- CSV leaderboard export focusing on ROI and Chip Deltas
 - budget caps per run, provider, and model
-- LiteLLM multi-provider execution
-- live terminal visualization
-- mixed human/bot/LiteLLM participation
-- Gradio replay UI
-- live web table with action sidebar and structured replay updates
-
-## Repository Layout
-
-```text
-docs/
-  architecture.md
-  rules_v1_option_a.md
-  tos_safety.md
-src/persistentpoker_bench/
-  __init__.py
-  models.py
-  spec.py
-tests/
-  test_spec.py
-```
+- LiteLLM multi-provider execution with exponential backoff retries
+- Gradio replay UI with real-time markdown extraction
 
 ## License
 
-TBD during Phase 4. MIT or Apache-2.0 are both compatible candidates.
+TBD. MIT or Apache-2.0 are both compatible candidates.

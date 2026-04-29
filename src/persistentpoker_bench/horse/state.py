@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from persistentpoker_bench.cards import Card
-from persistentpoker_bench.horse.variants import HorseVariant, HorseStreet
+from persistentpoker_bench.horse.variants import HorseVariant
+from persistentpoker_bench.game_state import Street
 
 @dataclass(slots=True)
 class HorsePlayerState:
@@ -21,7 +22,7 @@ class HorsePlayerState:
 @dataclass(slots=True)
 class HorseHandState:
     variant: HorseVariant
-    street: HorseStreet
+    street: Street
     players: list[HorsePlayerState]
     community_cards: tuple[Card, ...] = ()  # For Holdem/Omaha
     pot_total: int = 0
