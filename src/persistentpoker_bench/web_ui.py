@@ -228,103 +228,117 @@ def build_web_app():
         def on_load_file(file):
             if file is None: return None, gr.update(choices=[]), "No file selected"
             try:
-                data = None
+                raw_actions = []
                 with open(file.name, "r") as f:
                     for line in f:
                         if not line.strip(): continue
                         try:
                             parsed = json.loads(line)
-                            # Support pour les deux formats historiques (hand_results ou transcript)
-                            if "hand_results" in parsed or "transcript" in parsed:
-                                data = parsed
-                        except json.JSONDecodeError:
-                            continue
-                
-                if not data:
-                    return None, gr.update(choices=[]), "No valid match data found in file."
+                            # Si le fichier est un MatchRecord (V1), il a une clé 'hand_results'
+                            if "hand_results" in parsed:
+                                hands_list = parsed["hand_results"]
+                                hand_names = [f"Hand {i+1}" for i in range(len(hands_list))]
+                                return {"format": "v1", "data": hands_list}, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"V1 Match loaded: {len(hands_list)} hands."
+                            
+                            # Si c'est un Marathon (V2), c'est un dictionnaire avec une clé 'transcript' qui contient toutes les actions
+                            if "transcript" in parsed:
+                                raw_actions.extend(parsed["transcript"])
+                        except: continue
 
-                hands = data.get("hand_results", data.get("transcript", []))
-                hand_names = [f"Hand {i+1}" for i in range(len(hands))]
+                if not raw_actions:
+                    return None, gr.update(choices=[]), "No valid poker data found."
+
+                # On regroupe par hand_id
+                hands_map = {}
+                for act in raw_actions:
+                    hid = act.get("hand_id", "unknown")
+                    if hid not in hands_map: hands_map[hid] = []
+                    hands_map[hid].append(act)
                 
-                # On normalise la clé pour que on_hand_change trouve toujours 'hand_results'
-                data["hand_results"] = hands 
+                sorted_hand_ids = sorted(hands_map.keys())
+                hand_names = [f"Hand {i+1} ({hid})" for i, hid in enumerate(sorted_hand_ids)]
                 
-                return data, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Match loaded: {len(hand_names)} hands."
+                return {"format": "marathon", "data": hands_map, "ids": sorted_hand_ids}, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Marathon loaded: {len(sorted_hand_ids)} hands."
             except Exception as e:
                 return None, gr.update(choices=[]), f"Error loading file: {e}"
 
-        def on_hand_change(hand_name, match_data):
-            if not match_data or not hand_name: return "", ""
-            hand_idx = int(hand_name.split(" ")[1]) - 1
-            hand_result = match_data["hand_results"][hand_idx]
+        def on_hand_change(hand_name, match_state):
+            if not match_state or not hand_name: return "", ""
             
-            # Gestion des deux formats : HandRunResult complet vs Événement Transcript isolé
-            # Si on a un événement isolé (marathon log), l'état peut ne pas être directement sous "hand_state"
-            if "hand_state" in hand_result:
-                state_data = hand_result["hand_state"]
-            else:
-                # Si le format est aplati (comme dans certains logs), on crée un state minimal
-                # basé sur les clés existantes
-                state_data = {
-                    "variant": hand_result.get("variant", "holdem"),
-                    "pot_total": 0,
-                    "community_cards": hand_result.get("believed_pool", []), # Approximation si manquant
+            if match_state["format"] == "v1":
+                hand_idx = int(hand_name.split(" ")[1]) - 1
+                hand_data = match_state["data"][hand_idx]
+                hand_state_obj = hand_data["hand_state"]
+                viz_data = {
+                    "variant": hand_state_obj.get("variant", "holdem"),
+                    "pot_total": hand_state_obj.get("pot_total", 0),
+                    "community_cards": hand_state_obj.get("community_cards", []),
                     "players": []
                 }
-                # Fallback très basique pour éviter le crash
-                for i in range(4):
-                    state_data["players"].append({
-                        "name": f"Seat {i}",
-                        "stack": 0,
-                        "status": "active",
-                        "hole_cards": ["??", "??"]
+                for i, p in enumerate(hand_state_obj.get("players", [])):
+                    viz_data["players"].append({
+                        "name": p.get("name", f"Seat {i}"),
+                        "stack": p.get("stack", 0),
+                        "status": "folded" if p.get("folded") else "active",
+                        "hole_cards": p.get("hole_cards", ["??", "??"])
                     })
-            
-            # On prépare les données simplifiées pour le moteur de rendu visuel
-            viz_data = {
-                "variant": state_data.get("variant", "holdem"),
-                "pot_total": state_data.get("pot_total", 0),
-                "community_cards": state_data.get("community_cards", []),
-                "players": []
-            }
-            
-            for i, p in enumerate(state_data.get("players", [])):
-                viz_data["players"].append({
-                    "name": p.get("name", f"Seat {i}"),
-                    "stack": p.get("stack", 0),
-                    "status": "folded" if p.get("folded") else "active",
-                    "hole_cards": p.get("hole_cards", ["??", "??"])
-                })
-            
-            # Rendu du Markdown textuel en dessous
-            markdown_summary = render_replay_hand_markdown(hand_result) if "transcript" in hand_result else "Markdown replay not fully supported for raw trace logs."
-            
-            return render_visual_table(viz_data), markdown_summary
+                return render_visual_table(viz_data), render_replay_hand_markdown(hand_data)
+
+            else: # format marathon
+                hid = hand_name.split("(")[1].split(")")[0]
+                actions = match_state["data"][hid]
+                last_act = actions[-1] # On prend la dernière action pour l'état final
+                
+                # Dans les traces de marathon, l'état complet est dans 'game_snapshot'
+                snapshot = last_act.get("game_snapshot", {})
+                
+                viz_data = {
+                    "variant": last_act.get("variant", snapshot.get("variant", "holdem")),
+                    "pot_total": snapshot.get("pot_total", 0),
+                    "community_cards": snapshot.get("community_cards", last_act.get("believed_pool", [])),
+                    "players": []
+                }
+                
+                for i, p in enumerate(snapshot.get("players", [])):
+                    # On cherche les cartes privées dans l'action si elles ne sont pas dans le snapshot global
+                    viz_data["players"].append({
+                        "name": p.get("name", f"Seat {i}"),
+                        "stack": p.get("stack", 0),
+                        "status": p.get("status", "active"),
+                        "hole_cards": p.get("hole_cards", ["??", "??"])
+                    })
+                
+                return render_visual_table(viz_data), f"Hand ID: {hid}\nActions in this hand: {len(actions)}"
 
         def on_generate_demo():
             demo_path = Path("marathon_demo.jsonl")
             if not demo_path.exists():
                 return None, gr.update(choices=[]), "Demo file 'marathon_demo.jsonl' not found on the server."
             try:
-                data = None
+                raw_actions = []
                 with open(demo_path, "r") as f:
                     for line in f:
                         if not line.strip(): continue
                         try:
                             parsed = json.loads(line)
-                            if "hand_results" in parsed or "transcript" in parsed:
-                                data = parsed
-                        except json.JSONDecodeError:
-                            continue
-                            
-                if not data:
-                    return None, gr.update(choices=[]), "No valid match data found in demo file."
+                            # On cherche la clé transcript dans le fichier results.jsonl renommé
+                            if "transcript" in parsed:
+                                raw_actions.extend(parsed["transcript"])
+                        except: continue
+
+                if not raw_actions:
+                    return None, gr.update(choices=[]), "No actions found in demo file."
+
+                hands_map = {}
+                for act in raw_actions:
+                    hid = act.get("hand_id", "unknown")
+                    if hid not in hands_map: hands_map[hid] = []
+                    hands_map[hid].append(act)
                 
-                hands = data.get("hand_results", data.get("transcript", []))
-                hand_names = [f"Hand {i+1}" for i in range(len(hands))]
-                data["hand_results"] = hands
+                sorted_hand_ids = sorted(hands_map.keys())
+                hand_names = [f"Hand {i+1} ({hid})" for i, hid in enumerate(sorted_hand_ids)]
                 
-                return data, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Demo Marathon loaded: {len(hand_names)} hands."
+                return {"format": "marathon", "data": hands_map, "ids": sorted_hand_ids}, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Demo Marathon loaded: {len(sorted_hand_ids)} hands."
             except Exception as e:
                 return None, gr.update(choices=[]), f"Error loading demo file: {e}"
 
