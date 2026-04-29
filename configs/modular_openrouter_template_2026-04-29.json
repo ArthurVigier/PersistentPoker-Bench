@@ -1,0 +1,57 @@
+{
+  "track": "efficiency",
+  "seeds": [20260429],
+  "hand_count": 6,
+  "base_seed": 0,
+  "initial_button_index": 0,
+  "budget_caps": {
+    "total_cost_cap": 3.0,
+    "per_provider_cap": {
+      "openrouter": 3.0
+    },
+    "per_model_cap": {
+      "${OPENROUTER_OPENAI_MODEL_ID}": 2.0,
+      "${OPENROUTER_XAI_MODEL_ID}": 2.0
+    }
+  },
+  "lineups": [
+    {
+      "lineup_id": "openrouter-modular-a",
+      "entrants": [
+        {
+          "seat_name": "OpenRouter OpenAI A",
+          "provider": "openrouter",
+          "model_id": "${OPENROUTER_OPENAI_MODEL_ID}",
+          "display_name": "OpenRouter ${OPENROUTER_OPENAI_MODEL_ID}",
+          "litellm_model": "openrouter/${OPENROUTER_OPENAI_MODEL_ID}",
+          "temperature": null,
+          "max_tokens": 320,
+          "timeout": 180.0,
+          "notes": "Custom entrant via OpenRouter"
+        },
+        {
+          "seat_name": "OpenRouter xAI",
+          "provider": "openrouter",
+          "model_id": "${OPENROUTER_XAI_MODEL_ID}",
+          "display_name": "OpenRouter ${OPENROUTER_XAI_MODEL_ID}",
+          "litellm_model": "openrouter/${OPENROUTER_XAI_MODEL_ID}",
+          "temperature": null,
+          "max_tokens": 320,
+          "timeout": 180.0,
+          "notes": "Custom entrant via OpenRouter"
+        },
+        {
+          "seat_name": "OpenRouter OpenAI B",
+          "provider": "openrouter",
+          "model_id": "${OPENROUTER_OPENAI_MODEL_ID}",
+          "display_name": "OpenRouter ${OPENROUTER_OPENAI_MODEL_ID}",
+          "litellm_model": "openrouter/${OPENROUTER_OPENAI_MODEL_ID}",
+          "temperature": null,
+          "max_tokens": 320,
+          "timeout": 180.0,
+          "notes": "Custom entrant via OpenRouter"
+        }
+      ]
+    }
+  ]
+}

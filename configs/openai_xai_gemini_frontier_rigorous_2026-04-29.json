@@ -1,0 +1,166 @@
+{
+  "track": "frontier",
+  "seeds": [20260429, 20260430, 20260431],
+  "hand_count": 4,
+  "base_seed": 0,
+  "initial_button_index": 0,
+  "budget_caps": {
+    "total_cost_cap": 18.0,
+    "per_provider_cap": {
+      "openai": 8.0,
+      "xai": 8.0,
+      "gemini": 8.0
+    },
+    "per_model_cap": {
+      "gpt-5.5": 8.0,
+      "grok-4.20-reasoning": 8.0,
+      "gemini-2.5-pro": 8.0
+    }
+  },
+  "lineups": [
+    {
+      "lineup_id": "frontier-3family-rotation-a",
+      "entrants": [
+        {
+          "seat_name": "OpenAI GPT-5.5",
+          "provider": "openai",
+          "model_id": "gpt-5.5",
+          "litellm_model": "openai/gpt-5.5",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 240.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "prefer_json_mode": false
+        },
+        {
+          "seat_name": "xAI Grok 4.20",
+          "provider": "xai",
+          "model_id": "grok-4.20-reasoning",
+          "litellm_model": "xai/grok-4.20-reasoning",
+          "temperature": null,
+          "max_tokens": 480,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0
+        },
+        {
+          "seat_name": "Gemini 3.1 Pro",
+          "provider": "gemini",
+          "model_id": "gemini-3.1-pro",
+          "litellm_model": "gemini/gemini-3.1-pro-preview",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "extra_kwargs": {
+            "thinking": {
+              "type": "enabled",
+              "budget_tokens": 256
+            }
+          }
+        }
+      ]
+    },
+    {
+      "lineup_id": "frontier-3family-rotation-b",
+      "entrants": [
+        {
+          "seat_name": "xAI Grok 4.20",
+          "provider": "xai",
+          "model_id": "grok-4.20-reasoning",
+          "litellm_model": "xai/grok-4.20-reasoning",
+          "temperature": null,
+          "max_tokens": 480,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0
+        },
+        {
+          "seat_name": "Gemini 3.1 Pro",
+          "provider": "gemini",
+          "model_id": "gemini-3.1-pro",
+          "litellm_model": "gemini/gemini-3.1-pro-preview",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "extra_kwargs": {
+            "thinking": {
+              "type": "enabled",
+              "budget_tokens": 256
+            }
+          }
+        },
+        {
+          "seat_name": "OpenAI GPT-5.5",
+          "provider": "openai",
+          "model_id": "gpt-5.5",
+          "litellm_model": "openai/gpt-5.5",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 240.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "prefer_json_mode": false
+        }
+      ]
+    },
+    {
+      "lineup_id": "frontier-3family-rotation-c",
+      "entrants": [
+        {
+          "seat_name": "Gemini 3.1 Pro",
+          "provider": "gemini",
+          "model_id": "gemini-3.1-pro",
+          "litellm_model": "gemini/gemini-3.1-pro-preview",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "extra_kwargs": {
+            "thinking": {
+              "type": "enabled",
+              "budget_tokens": 256
+            }
+          }
+        },
+        {
+          "seat_name": "OpenAI GPT-5.5",
+          "provider": "openai",
+          "model_id": "gpt-5.5",
+          "litellm_model": "openai/gpt-5.5",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 240.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "prefer_json_mode": false
+        },
+        {
+          "seat_name": "xAI Grok 4.20",
+          "provider": "xai",
+          "model_id": "grok-4.20-reasoning",
+          "litellm_model": "xai/grok-4.20-reasoning",
+          "temperature": null,
+          "max_tokens": 480,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0
+        }
+      ]
+    }
+  ]
+}

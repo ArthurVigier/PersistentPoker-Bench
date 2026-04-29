@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "persistentpoker-bench"
+version = "0.1.0"
+description = "Open benchmark for advanced LLM reasoning and memory in multiplayer persistent-pool poker."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "PersistentPoker-Bench Contributors" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5.0",
+]
+llm = [
+  "litellm>=1.0.0",
+]
+ui = [
+  "gradio>=5.49.1",
+]
+
+[project.scripts]
+persistentpoker-bench = "persistentpoker_bench.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
