@@ -19,9 +19,9 @@
       "lineup_id": "horse-v2-frontier-balanced",
       "entrants": [
         {
-          "seat_name": "Mistral Large 3",
+          "seat_name": "Mistral Large latest",
           "provider": "mistral",
-          "model_id": "mistral-large-3",
+          "model_id": "mistral-large-latest",
           "litellm_model": "mistral/mistral-large-latest",
           "temperature": null,
           "max_tokens": 1024,

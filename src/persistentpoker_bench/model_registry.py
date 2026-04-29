@@ -62,11 +62,11 @@ FRONTIER_MODELS: tuple[RegisteredModel, ...] = (
     ),
     RegisteredModel(
         provider="mistral",
-        model_id="mistral-large-3",
-        display_name="Mistral Large 3",
+        model_id="mistral-large-latest",
+        display_name="Mistral Large latest",
         track=LeaderboardTrack.FRONTIER,
         api_style="openai_compatible",
-        notes="Mistral Heavyweight Flagship (675B MoE) as of early 2026.",
+        notes="Mistral Heavyweight Flagship (Stable Alias) as of early 2026.",
     ),
 )
 

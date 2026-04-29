@@ -159,6 +159,12 @@ def run_seeded_hand(
                 player.hole_cards = tuple(deck[:2]); del deck[:2]
                 player.up_cards = tuple(deck[:1]); del deck[:1]
         hand_state.deck = deck  # Save deck for advancing streets
+        # Initialisation du Stud
+        if variant not in ("holdem", "omaha_8b"):
+            from persistentpoker_bench.horse.horse_runner import determine_bring_in
+            bring_in_idx = determine_bring_in(hand_state)
+            hand_state.start_stud_round(bring_in_idx)
+            
         # In V2, we don't have a fixed pre-dealt board. We draw it on demand.
         full_board = ()
     else:

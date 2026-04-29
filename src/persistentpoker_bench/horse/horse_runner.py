@@ -108,6 +108,7 @@ def advance_horse_street(state: HorseHandState, deck: list[Card]):
         else:
             state.street = HorseStreet.SHOWDOWN
         state.actor_index = determine_first_actor(state)
+        state.pending_actor_indices = tuple(state._iter_active_from(state.actor_index))
         
     else:
         # Stud Games
@@ -131,6 +132,7 @@ def advance_horse_street(state: HorseHandState, deck: list[Card]):
             state.street = HorseStreet.SHOWDOWN
         
         state.actor_index = determine_first_actor(state)
+        state.pending_actor_indices = tuple(state._iter_active_from(state.actor_index))
 
 def update_persistent_pool_from_horse(state: HorseHandState, pool: PersistentPool):
     """

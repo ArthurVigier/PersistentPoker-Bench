@@ -259,6 +259,26 @@ class HandState:
         self.actor_index = self._under_the_gun_index()
         self.pending_actor_indices = tuple(self._iter_active_from(self.actor_index))
 
+    def start_stud_round(self, bring_in_index: int) -> None:
+        """Initialise la Third Street pour les jeux de Stud (Razz/Stud)."""
+        if len(self.participating_player_indices) <= 1:
+            self.pending_actor_indices = ()
+            self.street = Street.SHOWDOWN
+            return
+            
+        # Le bring_in_index paye le small_blind de force.
+        self._post_forced_bet(
+            bring_in_index,
+            min(self.players[bring_in_index].stack, self.config.small_blind),
+            ActionType.POST_BRING_IN,
+        )
+        self.current_bet = self.players[bring_in_index].committed_street
+        self.last_full_raise_size = self.config.small_blind
+        
+        # Le prochain à parler est celui après le bring-in
+        self.actor_index = self._next_participating_after(bring_in_index)
+        self.pending_actor_indices = tuple(self._iter_active_from(self.actor_index))
+
     def _post_forced_bet(self, player_index: int, amount: int, action_type: ActionType) -> None:
         player = self.players[player_index]
         player.stack -= amount
@@ -308,8 +328,8 @@ def create_hand_state(
         )
     hand_state = HandState(config=config, players=players, button_index=button_index % len(players), game_mode=game_mode, variant=variant)
     if variant in ("holdem", "omaha_8b"):
+        hand_state.street = Street.PREFLOP
         hand_state.post_blinds()
     else:
-        # For Stud games, ante/bring-in is posted later or we just set current_bet
-        hand_state.current_bet = 0
+        hand_state.street = Street.THIRD_STREET
     return hand_state
