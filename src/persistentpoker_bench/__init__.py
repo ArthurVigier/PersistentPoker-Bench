@@ -95,8 +95,7 @@ from persistentpoker_bench.tournament import (
     run_tournament,
     serialize_match_record,
 )
-from persistentpoker_bench.web_ui import build_web_app, generate_demo_replay_payload
-from persistentpoker_bench.web_ui import default_live_play_config_json, render_live_table_html
+from persistentpoker_bench.web_ui import build_web_app
 
 __all__ = [
     "Action",
@@ -201,10 +200,7 @@ __all__ = [
     "render_replay_summary_markdown",
     "build_match_replay",
     "build_web_app",
-    "default_live_play_config_json",
-    "generate_demo_replay_payload",
     "play_terminal_match",
-    "render_live_table_html",
     "standard_deck",
     "AggregateMetrics",
 ]
