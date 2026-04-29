@@ -266,28 +266,18 @@ def build_web_app():
             return render_visual_table(viz_data), markdown_summary
 
         def on_generate_demo():
-            from persistentpoker_bench.match_runner import run_seeded_match, MatchRunnerConfig
-            from persistentpoker_bench.hand_runner import HandRunnerConfig
-            from persistentpoker_bench.runtime_agents import StaticDecisionAgent
-            from persistentpoker_bench.game_state import ActionType
-            from persistentpoker_bench.schemas import LLMDecision, WinnerPoolDecision
-
-            agents = {
-                0: StaticDecisionAgent(LLMDecision(action=ActionType.CALL.value, amount=None, believed_pool=[], winner_pool_decision=WinnerPoolDecision.CONTINUE, reasoning="Call everything")),
-                1: StaticDecisionAgent(LLMDecision(action=ActionType.CHECK.value, amount=None, believed_pool=[], winner_pool_decision=WinnerPoolDecision.CONTINUE, reasoning="Check it down")),
-                2: StaticDecisionAgent(LLMDecision(action=ActionType.FOLD.value, amount=None, believed_pool=[], winner_pool_decision=WinnerPoolDecision.CONTINUE, reasoning="Too scared")),
-                3: StaticDecisionAgent(LLMDecision(action=ActionType.CALL.value, amount=None, believed_pool=[], winner_pool_decision=WinnerPoolDecision.CONTINUE, reasoning="I'm a bot")),
-            }
-            config = MatchRunnerConfig(hand_runner_config=HandRunnerConfig(seed=42), hand_count=3)
-            result = run_seeded_match(player_names=["Alice", "Bob", "Charlie", "Dave"], decision_agents=agents, config=config)
-            
-            from persistentpoker_bench.tournament import MatchRecord, serialize_match_record
-            from persistentpoker_bench.model_registry import LeaderboardTrack
-            record = MatchRecord(lineup_id="demo", track=LeaderboardTrack.FRONTIER, seed=42, entrants=(), match_result=result, metrics=None)
-            data = serialize_match_record(record)
-            
-            hand_names = [f"Hand {i+1}" for i in range(len(data.get("hand_results", [])))]
-            return data, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Demo Match loaded: {len(hand_names)} hands."
+            demo_path = Path("marathon_demo.jsonl")
+            if not demo_path.exists():
+                return None, gr.update(choices=[]), "Demo file 'marathon_demo.jsonl' not found on the server."
+            try:
+                with open(demo_path, "r") as f:
+                    first_line = f.readline()
+                    data = json.loads(first_line)
+                
+                hand_names = [f"Hand {i+1}" for i in range(len(data.get("hand_results", [])))]
+                return data, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Demo Marathon loaded: {len(hand_names)} hands."
+            except Exception as e:
+                return None, gr.update(choices=[]), f"Error loading demo file: {e}"
 
         demo_btn.click(on_generate_demo, inputs=[], outputs=[match_state, hand_selector, hand_summary])
         load_btn.click(on_load_file, inputs=[file_input], outputs=[match_state, hand_selector, hand_summary])
