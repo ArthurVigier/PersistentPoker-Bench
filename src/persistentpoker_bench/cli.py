@@ -99,6 +99,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser("run", help="Run a litellm-backed tournament from a JSON config.")
     run_parser.add_argument("--config", required=True)
     run_parser.add_argument("--outdir", required=True)
+    run_parser.add_argument("--pool-state", type=str, help="Path to JSON file with card array to seed pool.", default=None)
     run_parser.set_defaults(func=_cmd_run)
 
     return parser
@@ -227,10 +228,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
     _load_runtime_env(Path(".env"))
     config_payload = _expand_env_placeholders(json.loads(Path(args.config).read_text(encoding="utf-8")))
     outdir = Path(args.outdir)
+    initial_pool = ()
+    if getattr(args, "pool_state", None):
+        initial_pool = tuple(json.loads(Path(args.pool_state).read_text(encoding="utf-8")))
+
     tournament_result = _run_live_tournament_from_config(
         config_payload,
         progress_callback=_build_cli_progress_reporter(),
         incremental_outdir=outdir,
+        initial_pool=initial_pool,
     )
     _export_release_artifacts(tournament_result, outdir, skip_jsonl=True)
     return 0
@@ -240,12 +246,14 @@ def _run_live_tournament_from_config(
     payload: dict[str, Any],
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
     incremental_outdir: Path | None = None,
+    initial_pool: tuple[str, ...] = (),
 ):
     track = LeaderboardTrack(payload["track"])
     game_mode = str(payload.get("game_mode", "holdem"))
     termination_rule = str(payload.get("termination_rule", "hand_limit"))
     seeds = tuple(int(seed) for seed in payload["seeds"])
     hand_count = int(payload["hand_count"])
+    starting_hand_number = int(payload.get("starting_hand_number", 1))
     hand_seed = int(payload.get("base_seed", 0))
     initial_button_index = int(payload.get("initial_button_index", 0))
     budget_caps = _parse_budget_caps(payload.get("budget_caps"))
@@ -292,10 +300,13 @@ def _run_live_tournament_from_config(
                 initial_button_index=initial_button_index,
                 game_mode=game_mode,
                 termination_rule=termination_rule,
+                starting_hand_number=starting_hand_number,
+                initial_pool=initial_pool,
             ),
             budget_caps=budget_caps,
             game_mode=game_mode,
             termination_rule=termination_rule,
+            initial_pool=initial_pool,
         ),
         progress_callback=progress_callback,
         incremental_outdir=incremental_outdir,

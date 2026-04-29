@@ -33,6 +33,7 @@ class TournamentRunnerConfig:
     budget_caps: BudgetCaps | None = None
     game_mode: str = "holdem"
     termination_rule: str = "hand_limit"
+    initial_pool: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +96,8 @@ def run_tournament(
                 initial_button_index=config.match_config_template.initial_button_index,
                 game_mode=config.game_mode,
                 termination_rule=config.termination_rule,
+                starting_hand_number=config.match_config_template.starting_hand_number,
+                initial_pool=config.initial_pool,
             )
             decision_agents = {
                 index: entrant.agent_factory() for index, entrant in enumerate(lineup.entrants)
@@ -135,6 +138,7 @@ def run_tournament(
                         }
                     )
                 ),
+                incremental_hand_log=(incremental_outdir / "decision_traces.jsonl") if incremental_outdir else None,
             )
             metrics = compute_match_metrics(match_result)
             match_record = MatchRecord(

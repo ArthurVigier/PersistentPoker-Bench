@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 from persistentpoker_bench.hand_runner import (
@@ -19,6 +21,8 @@ class MatchRunnerConfig:
     initial_button_index: int = 0
     game_mode: str = "holdem"
     termination_rule: str = "hand_limit"
+    starting_hand_number: int = 1
+    initial_pool: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,28 +34,32 @@ class MatchRunResult:
     final_stacks: tuple[int, ...]
     termination_reason: str
 
-
 def run_seeded_match(
     *,
     player_names: list[str] | tuple[str, ...],
     decision_agents: dict[int, DecisionAgent],
     config: MatchRunnerConfig,
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    incremental_hand_log: Path | None = None,
 ) -> MatchRunResult:
     persistent_pool = PersistentPool()
+    if config.initial_pool:
+        from persistentpoker_bench.cards import parse_cards
+        persistent_pool.cards.extend(parse_cards(list(config.initial_pool)))
+        
     hand_results: list[HandRunResult] = []
     current_stacks = [config.hand_runner_config.starting_stack for _ in player_names]
     current_button_index = config.initial_button_index % len(player_names)
     termination_reason = "hand_limit"
 
-    hand_number = 1
-    max_hands = config.hand_count if config.termination_rule == "hand_limit" else 100 # Safety limit for survival
+    hand_number = config.starting_hand_number
+    max_hands = config.starting_hand_number + config.hand_count - 1 if config.termination_rule == "hand_limit" else 1000 # Safety limit for survival
 
     while hand_number <= max_hands:
         if _count_live_stacks(current_stacks) <= 1:
             termination_reason = "single_player_remaining"
             break
-            
+
         if config.termination_rule == "first_bankrupt" and hand_number > 1:
             if any(stack <= 0 for stack in current_stacks):
                 termination_reason = "first_bankrupt"
@@ -62,13 +70,20 @@ def run_seeded_match(
             player_names=player_names,
             decision_agents=decision_agents,
             persistent_pool=persistent_pool,
-            config=config.hand_runner_config,
-            starting_stacks=current_stacks,
-            button_index=current_button_index,
             hand_number=hand_number,
+            button_index=current_button_index,
+            starting_stacks=tuple(current_stacks),
+            config=config.hand_runner_config,
+            observer=None,
         )
         hand_results.append(hand_result)
         current_stacks = list(hand_result.ending_stacks_snapshot)
+
+        if incremental_hand_log:
+            with incremental_hand_log.open("a", encoding="utf-8") as f:
+                # On sauve juste les traces de décisions pour la résilience
+                for trace in hand_result.transcript:
+                    f.write(json.dumps(trace, sort_keys=True) + "\n")
         if progress_callback is not None:
             progress_callback(
                 {

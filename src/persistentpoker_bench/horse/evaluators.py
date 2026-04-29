@@ -44,7 +44,7 @@ class HorseEvaluator:
         return best_hand
 
     @staticmethod
-    def evaluate_razz(down_cards: tuple[Card, ...], up_cards: tuple[Card, ...]) -> tuple[int, tuple[int, ...]]:
+    def evaluate_razz(hole_cards: tuple[Card, ...], up_cards: tuple[Card, ...]) -> tuple[int, tuple[int, ...]]:
         """
         Razz (Lowball A-5).
         But : Avoir les 5 cartes les plus basses possibles. L'As compte comme 1 (le plus bas).
@@ -52,7 +52,7 @@ class HorseEvaluator:
         On retourne un score inversé : (nombre de paires, (rang_le_plus_haut, ..., rang_le_plus_bas))
         Plus le score est PETIT, meilleure est la main.
         """
-        all_cards = down_cards + up_cards
+        all_cards = hole_cards + up_cards
         if len(all_cards) < 5:
             raise ValueError("Razz requiert au moins 5 cartes.")
             
@@ -76,13 +76,13 @@ class HorseEvaluator:
         return best_score
 
     @staticmethod
-    def evaluate_stud_high(down_cards: tuple[Card, ...], up_cards: tuple[Card, ...], pool: tuple[Card, ...]) -> EvaluatedHand:
+    def evaluate_stud_high(hole_cards: tuple[Card, ...], up_cards: tuple[Card, ...], pool: tuple[Card, ...]) -> EvaluatedHand:
         """
         Stud High. 7 cartes par joueur.
         Le "pool" persistant agit comme une immense pollution visuelle car il est commun, 
         mais au vrai Stud, on a le droit d'utiliser les cartes du pool s'il existe (règle maison du Persistent Poker).
         """
-        all_cards = down_cards + up_cards + pool
+        all_cards = hole_cards + up_cards + pool
         return evaluate_hand(all_cards)
 
     @staticmethod

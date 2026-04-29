@@ -1,6 +1,6 @@
 ---
 title: PersistentPoker-Bench
-emoji: "🂡"
+emoji: "🃏"
 colorFrom: green
 colorTo: yellow
 sdk: gradio
@@ -13,14 +13,26 @@ pinned: false
 
 PersistentPoker-Bench is an open-source benchmark for evaluating advanced LLM reasoning, memory, and strategic decision-making in a custom multiplayer No-Limit environment.
 
+🔗 **Interactive Replay Studio (Gradio):** [Hugging Face Space](https://huggingface.co/spaces/Artvv/PersistentPoker-Bench)  
+📊 **Official Evaluation Logs:** [Hugging Face Dataset](https://huggingface.co/datasets/Artvv/PersistentPoker-Bench-Data)
+
 The benchmark combines:
 
 - A custom hand evaluator with duplicate-aware categories
-- A persistent public pool that compounds across hands
+- A persistent public pool that compounds across hands (creates Attention Dilution)
 - A memory verification step for model state tracking
 - A deterministic-seed tournament runner with public metrics and dual leaderboards
 - **V2 H.O.R.S.E. Engine**: Dynamic game rule rotation (Hold'em, Omaha 8B, Razz, Stud, Stud 8B)
-- **Survival Mode**: Endless endurance runs ending only upon bankruptcy
+- **Diabolical Survival Mode**: Endless endurance runs ending only upon bankruptcy
+
+## 💡 Key Findings (April 2026 Evaluation)
+
+Our extensive testing across Frontier and Efficiency models revealed critical insights into modern LLM architecture:
+
+1. **The Parsing Curse (Reasoning vs. Compliance):** High-tier reasoning models (like GPT-5.5) frequently broke strict JSON formatting (`parsing_success_rate` dropped below 60%) due to verbose hidden reasoning interfering with syntax, while smaller "Flash" models remained perfectly compliant.
+2. **The Power of Metacognition (The "Reset" Tactic):** Models are typically biased toward hoarding information (RLHF bias). Gemini 3.1 Pro emerged as the most resilient agent because it actively chose to "Reset" the public pool when its cognitive load became dangerous, sacrificing history for mental clarity.
+3. **Context Switching Mastery:** In the V2 H.O.R.S.E rotation, Mistral Large 3 proved highly superior. Its strict adherence to rules allowed it to instantly switch from Highball (Hold'em) to Lowball (Razz) without the "Catastrophic Forgetting" or "Rule Drift" that ruined its competitors.
+4. **ROI over Win Rate:** The `efficiency` track proved that winning the most hands (GPT-5.4 Mini) often leads to massive financial losses (due to being a passive "calling station"), whereas opportunistic folding and aggressive capitalizing (Gemini Flash, Grok Fast) yields a much higher Return On Investment.
 
 ## Status
 

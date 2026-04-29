@@ -1,1 +1,2 @@
--e .[ui,llm]
+litellm>=1.0.0
+gradio>=5.49.1

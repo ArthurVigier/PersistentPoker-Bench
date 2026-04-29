@@ -141,6 +141,9 @@ class HandState:
     def participating_player_indices(self) -> tuple[int, ...]:
         return tuple(index for index, player in enumerate(self.players) if not player.eliminated)
 
+    def get_live_players(self) -> list[PlayerState]:
+        return [p for p in self.players if not p.eliminated and not p.folded]
+
     def get_player(self, index: int) -> PlayerState:
         return self.players[index]
 

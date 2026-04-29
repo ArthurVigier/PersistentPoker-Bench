@@ -123,7 +123,7 @@ def advance_horse_street(state: HorseHandState, deck: list[Card]):
             state.street = Street.SIXTH_STREET
         elif state.street == Street.SIXTH_STREET:
             for p in state.get_live_players():
-                p.down_cards += _deal_cards(deck, 1) # 7th is down
+                p.hole_cards += _deal_cards(deck, 1) # 7th is down
             state.street = Street.SEVENTH_STREET
         else:
             state.street = Street.SHOWDOWN
