@@ -24,6 +24,10 @@ llm = [
 ui = [
   "gradio>=5.49.1",
 ]
+video = [
+  "matplotlib>=3.8",
+  "Pillow>=10.0",
+]
 
 [project.scripts]
 persistentpoker-bench = "persistentpoker_bench.cli:main"

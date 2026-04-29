@@ -1,9 +1,12 @@
+import json
+
 from persistentpoker_bench import HandRunnerConfig, PlaySeatKind, PlaySeatSpec, PlaySessionConfig
 from persistentpoker_bench.live_play import LiveMatchController
 from persistentpoker_bench.web_ui import (
     build_replay_view_model,
     default_live_play_config_json,
     generate_demo_replay_payload,
+    load_replay_source,
     render_live_table_html,
 )
 
@@ -51,3 +54,32 @@ def test_render_live_table_html_includes_player_name() -> None:
 
     assert "You" in html
     assert "Persistent public pool" in html
+
+
+def test_load_replay_source_supports_embedded_replay_jsonl(tmp_path) -> None:
+    replay_payload = generate_demo_replay_payload(seed=20260428, hand_count=1)
+    source_path = tmp_path / "results.jsonl"
+    source_path.write_text(
+        '{"lineup_id":"demo","replay":' + json.dumps(replay_payload) + "}\n",
+        encoding="utf-8",
+    )
+
+    loaded = load_replay_source(source_path)
+
+    assert loaded["format"] == "persistentpoker-bench-replay-v1"
+    assert len(loaded["hands"]) == 1
+
+
+def test_load_replay_source_supports_flat_trace_jsonl(tmp_path) -> None:
+    replay_payload = generate_demo_replay_payload(seed=20260428, hand_count=1)
+    trace_rows = replay_payload["hands"][0]["transcript"]
+    source_path = tmp_path / "decision_traces.jsonl"
+    source_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in trace_rows) + "\n",
+        encoding="utf-8",
+    )
+
+    loaded = load_replay_source(source_path)
+
+    assert len(loaded["hands"]) == 1
+    assert loaded["hands"][0]["community_cards"] == replay_payload["hands"][0]["community_cards"]

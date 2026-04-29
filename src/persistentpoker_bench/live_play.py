@@ -128,11 +128,18 @@ class LiveMatchController:
         )
         memory_result = evaluate_memory(envelope.decision.believed_pool, self.persistent_pool.snapshot())
         action = _validate_or_fallback_action(envelope.decision, self.hand_state, player_index)
+        game_snapshot = serialize_hand_state(
+            self.hand_state,
+            self.persistent_pool,
+            hand_id=self.current_hand_id or "",
+            acting_player_index=player_index,
+        )
         apply_action(self.hand_state, player_index, action)
         self.transcript.append(
             _build_transcript_event(
                 hand_id=self.current_hand_id or "",
                 hand_state=self.hand_state,
+                game_snapshot=game_snapshot,
                 player_index=player_index,
                 envelope=envelope,
                 action=action,
@@ -189,6 +196,7 @@ class LiveMatchController:
             _build_transcript_event(
                 hand_id=self.current_hand_id or "",
                 hand_state=self.hand_state,
+                game_snapshot=game_snapshot,
                 player_index=player_index,
                 envelope=envelope,
                 action=action,
@@ -312,6 +320,7 @@ def _build_transcript_event(
     *,
     hand_id: str,
     hand_state: HandState,
+    game_snapshot: dict[str, Any],
     player_index: int,
     envelope: DecisionEnvelope,
     action: Action,
@@ -321,6 +330,7 @@ def _build_transcript_event(
     return {
         "hand_id": hand_id,
         "street": hand_state.street.value,
+        "game_snapshot": game_snapshot,
         "player_index": player_index,
         "player_name": hand_state.players[player_index].name,
         "provider": envelope.provider,

@@ -1,0 +1,72 @@
+{
+  "track": "efficiency",
+  "game_mode": "holdem",
+  "termination_rule": "hand_limit",
+  "seeds": [20260429],
+  "hand_count": 1,
+  "base_seed": 20260429,
+  "lineups": [
+    {
+      "lineup_id": "local-ollama-smoke",
+      "entrants": [
+        {
+          "seat_name": "Qwen Local A",
+          "provider": "local",
+          "model_id": "Qwen/Qwen3-8B-GGUF-Q4",
+          "display_name": "Qwen3 8B Ollama Q4",
+          "local_backend": "ollama",
+          "local_model": "qwen3:8b",
+          "base_url": "http://127.0.0.1:11434",
+          "temperature": 0.0,
+          "max_tokens": 400,
+          "metadata": {
+            "parameter_count": "8B",
+            "architecture": "dense_transformer",
+            "quantization": "q4",
+            "context_length": 32768,
+            "constrained_decoding": true,
+            "memory_scaffold": "none"
+          }
+        },
+        {
+          "seat_name": "Qwen Local B",
+          "provider": "local",
+          "model_id": "Qwen/Qwen3-8B-GGUF-Q4",
+          "display_name": "Qwen3 8B Ollama Q4",
+          "local_backend": "ollama",
+          "local_model": "qwen3:8b",
+          "base_url": "http://127.0.0.1:11434",
+          "temperature": 0.0,
+          "max_tokens": 400,
+          "metadata": {
+            "parameter_count": "8B",
+            "architecture": "dense_transformer",
+            "quantization": "q4",
+            "context_length": 32768,
+            "constrained_decoding": true,
+            "memory_scaffold": "none"
+          }
+        },
+        {
+          "seat_name": "Qwen Local C",
+          "provider": "local",
+          "model_id": "Qwen/Qwen3-8B-GGUF-Q4",
+          "display_name": "Qwen3 8B Ollama Q4",
+          "local_backend": "ollama",
+          "local_model": "qwen3:8b",
+          "base_url": "http://127.0.0.1:11434",
+          "temperature": 0.0,
+          "max_tokens": 400,
+          "metadata": {
+            "parameter_count": "8B",
+            "architecture": "dense_transformer",
+            "quantization": "q4",
+            "context_length": 32768,
+            "constrained_decoding": true,
+            "memory_scaffold": "none"
+          }
+        }
+      ]
+    }
+  ]
+}

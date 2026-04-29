@@ -11,57 +11,61 @@ pinned: false
 
 # PersistentPoker-Bench
 
-PersistentPoker-Bench is an open-source benchmark for evaluating advanced LLM reasoning, memory, and strategic decision-making in a custom multiplayer No-Limit environment.
+PersistentPoker-Bench is an open benchmark for evaluating LLM agents in a
+path-dependent multiplayer poker environment. It stress-tests strategic
+reasoning, public-state memory, strict JSON compliance, cost-aware inference,
+and long-horizon robustness under a custom persistent-card pool.
 
-🔗 **Interactive Replay Studio (Gradio):** [Hugging Face Space](https://huggingface.co/spaces/Artvv/PersistentPoker-Bench)  
-📊 **Official Evaluation Logs:** [Hugging Face Dataset](https://huggingface.co/datasets/Artvv/PersistentPoker-Bench-Data)
+- Interactive Replay Studio: [Hugging Face Space](https://huggingface.co/spaces/Artvv/PersistentPoker-Bench)
+- Official Evaluation Logs: [Hugging Face Dataset](https://huggingface.co/datasets/Artvv/PersistentPoker-Bench-Data)
 
-The benchmark combines:
+## What It Tests
 
-- A custom hand evaluator with duplicate-aware categories
-- A persistent public pool that compounds across hands (creates Attention Dilution)
-- A memory verification step for model state tracking
-- A deterministic-seed tournament runner with public metrics and dual leaderboards
-- **V2 H.O.R.S.E. Engine**: Dynamic game rule rotation (Hold'em, Omaha 8B, Razz, Stud, Stud 8B)
-- **Diabolical Survival Mode**: Endless endurance runs ending only upon bankruptcy
+The benchmark combines ordinary poker pressure with agentic failure modes:
 
-## 💡 Key Findings (April 2026 Evaluation)
+- **Persistent public memory**: exposed cards accumulate across hands unless a winner chooses to reset the pool.
+- **Audited belief tracking**: every model must report `believed_pool`, preserving duplicate cards.
+- **Strict protocol reliability**: decisions must be valid JSON and legal poker actions.
+- **State governance**: winners choose whether the next hand inherits or clears the public pool.
+- **Variant switching**: H.O.R.S.E. mode rotates Hold'em, Omaha 8B, Razz, Stud, and Stud 8B.
+- **Resource awareness**: metrics track tokens, estimated cost, parsing success, memory accuracy, chips, and survival.
+- **Replayability**: seeded tournaments produce JSONL artifacts, visual replays, and video renders.
 
-Our extensive testing across Frontier and Efficiency models revealed critical insights into modern LLM architecture:
+## Key Findings
 
-1. **The Parsing Curse (Reasoning vs. Compliance):** High-tier reasoning models (like GPT-5.5) frequently broke strict JSON formatting (`parsing_success_rate` dropped below 60%) due to verbose hidden reasoning interfering with syntax, while smaller "Flash" models remained perfectly compliant.
-2. **The Power of Metacognition (The "Reset" Tactic):** Models are typically biased toward hoarding information (RLHF bias). Gemini 3.1 Pro emerged as the most resilient agent because it actively chose to "Reset" the public pool when its cognitive load became dangerous, sacrificing history for mental clarity.
-3. **Context Switching Mastery:** In the V2 H.O.R.S.E rotation, Mistral Large 3 proved highly superior. Its strict adherence to rules allowed it to instantly switch from Highball (Hold'em) to Lowball (Razz) without the "Catastrophic Forgetting" or "Rule Drift" that ruined its competitors.
-4. **ROI over Win Rate:** The `efficiency` track proved that winning the most hands (GPT-5.4 Mini) often leads to massive financial losses (due to being a passive "calling station"), whereas opportunistic folding and aggressive capitalizing (Gemini Flash, Grok Fast) yields a much higher Return On Investment.
+April 2026 frontier and efficiency runs surfaced several architectural lessons:
 
-## Status
+- **Reasoning can fight compliance**: stronger reasoning models may still lose benchmark value if verbose outputs break strict JSON.
+- **Reset is metacognition**: clearing the pool can be correct when public history becomes cognitively toxic.
+- **Rule switching is a real skill**: H.O.R.S.E. exposes catastrophic rule drift between highball, lowball, and stud-like regimes.
+- **ROI can beat win rate**: a model can win many hands while losing stack EV through passive calling or poor risk control.
 
-Current milestone: Phase 5 (H.O.R.S.E Variant & Agentic Resilience).
+## Current Capabilities
 
-The official rules and project architecture live in:
+- Game modes: `holdem` and `horse_v2`
+- Players: configurable from 3 to 6
+- Betting: no-limit actions, all-in handling, and side pots
+- Tracks: `frontier` and `efficiency`
+- Termination: fixed hand limit, first-bankrupt survival, and marathon-style configs
+- Runtimes: LiteLLM providers plus local open-source backends through `local_backend`
+- Visualization: Gradio replay studio and MP4 video renderer
+
+## Documentation
+
+Core project documents:
 
 - `docs/rules_v1_option_a.md`
+- `docs/horse_v2_topological_rules.md`
+- `docs/current_game_theoretic_framework.md`
+- `docs/local_open_models.md`
 - `docs/architecture.md`
 - `docs/tos_safety.md`
 
-## Core Benchmark Properties
+## Model Roster
 
-- Game Modes: `holdem` (V1) or `horse_v2` (V2)
-- Players: 4 by default, configurable from 3 to 6
-- Betting: full no-limit, including all-in and side pots
-- Shared state: persistent public pool carried across hands (board cards + stud up-cards)
-- Memory check: explicit `believed_pool` verification step
-- Metacognition: Default winner action is `continue`, but models can tactically choose `reset`
-- Official tracks: `frontier` and `efficiency`
-- Resilience: Relaxed JSON parsing mode for ultra-verbose "Reasoning" models
-
-## Supported Flagship Models (April 2026 Roster)
-
-- **Gemini 3.1 Pro** & **Gemini 3 Flash** (Google)
-- **GPT-5.5** & **GPT-5.4 Mini** (OpenAI)
-- **Grok 4.20 Reasoning** & **Grok 4.1 Fast** (xAI)
-- **Mistral Large latest** & **Mistral Small 4** (Mistral AI)
-- **DeepSeek V4 Pro** (DeepSeek)
+The packaged registry includes frontier and efficiency entrants from OpenAI,
+xAI, Google/Gemini, Mistral, DeepSeek, and Qwen. Custom API, OpenRouter, and
+local open-source entrants can be supplied directly in JSON configs.
 
 ## Roadmap
 
@@ -70,7 +74,7 @@ The official rules and project architecture live in:
 3. Phase 2 - LLM integration through LiteLLM with strict JSON outputs
 4. Phase 3 - tournament orchestration and metrics
 5. Phase 4 - public release assets and demo
-6. **Phase 5 (Active) - H.O.R.S.E variants, incremental JSONL writing, and Diabolical Survival Mode**
+6. Phase 5 - H.O.R.S.E variants, replay/video tooling, local model runtimes, and survival modes
 
 ## Quick Start
 
@@ -81,16 +85,16 @@ pip install -e '.[dev,llm,ui]'
 pytest
 ```
 
-## CLI Workflow
+## Common Workflows
 
-List the official benchmark roster:
+List benchmark models:
 
 ```bash
 persistentpoker-bench models
 persistentpoker-bench models --track frontier
 ```
 
-Run a live LiteLLM-backed tournament from JSON config (Incremental writing supported):
+Run a LiteLLM/API-backed tournament:
 
 ```bash
 persistentpoker-bench run \
@@ -98,7 +102,43 @@ persistentpoker-bench run \
   --outdir ./artifacts/horse-v2-run
 ```
 
-### V2 H.O.R.S.E Config Example (with relaxed parsing)
+Run a local open-source model through Ollama, vLLM, llama.cpp, or another
+OpenAI-compatible local server:
+
+```bash
+persistentpoker-bench run \
+  --config ./configs/local/qwen3_ollama_smoke.json \
+  --outdir ./artifacts/local-qwen3-smoke
+```
+
+Launch the replay studio:
+
+```bash
+persistentpoker-bench web --host 127.0.0.1 --port 7860
+```
+
+Render a benchmark video:
+
+```bash
+persistentpoker-bench video \
+  --input ./artifacts/openai-xai-frontier-calibrated-2026-04-29/run_summary.json \
+  --output ./artifacts/openai-xai-frontier-calibrated-2026-04-29/frontier.mp4 \
+  --fps 2
+```
+
+Play a terminal session with humans and bots:
+
+```bash
+persistentpoker-bench play \
+  --players "Alice,Bob,CPU1,CPU2" \
+  --human-seats 1,2 \
+  --hands 3 \
+  --seed 20260428
+```
+
+## Tournament Config Example
+
+H.O.R.S.E. config with relaxed parsing for verbose reasoning models:
 
 ```json
 {
@@ -135,39 +175,52 @@ persistentpoker-bench run \
 }
 ```
 
-*Note: For Deep Reasoning models (GPT-5.5, Mistral Large, Grok 4.20), `prefer_json_mode: false` is highly recommended to prevent API crashes when the model outputs `<think>` blocks or verbose markdown.*
+For deep-reasoning models, `prefer_json_mode: false` can be useful when a
+provider rejects JSON mode or the model emits verbose hidden-reasoning style
+content. The parser still normalizes the final decision into the benchmark
+schema.
 
-Play a live terminal session with one or more humans:
+Local model entrants use the same schema with an additional `local_backend`:
 
-```bash
-persistentpoker-bench play \
-  --players "Alice,Bob,CPU1,CPU2" \
-  --human-seats 1,2 \
-  --hands 3 \
-  --seed 20260428
+```json
+{
+  "seat_name": "Qwen Local",
+  "provider": "local",
+  "model_id": "Qwen/Qwen3-8B-GGUF-Q4",
+  "display_name": "Qwen3 8B Ollama Q4",
+  "local_backend": "ollama",
+  "local_model": "qwen3:8b",
+  "base_url": "http://127.0.0.1:11434",
+  "metadata": {
+    "parameter_count": "8B",
+    "architecture": "dense_transformer",
+    "quantization": "q4",
+    "context_length": 32768
+  }
+}
 ```
 
-Launch the replay web studio (Gradio):
+## Artifacts
 
-```bash
-persistentpoker-bench web --host 127.0.0.1 --port 7860
-```
+Runs can emit:
 
-Hugging Face Space readiness:
+- `results.jsonl`
+- `match_summaries.jsonl`
+- `decision_traces.jsonl`
+- `leaderboard.csv`
+- `run_summary.json`
+- replay JSON files
+- MP4 video renders
 
-- Space app entrypoint: `hf_space/app.py`
+Decision traces include normalized actions, raw model text, parse mode,
+reported pool belief, memory scores, usage summaries, and local model metadata
+when available.
+
+## Hugging Face Space
+
+- Space entrypoint: `hf_space/app.py`
 - Space dependencies: `requirements.txt`
-- provider keys should be stored as **Space Secrets**, not hard-coded
-
-## Release Artifacts
-
-The public workflow now supports:
-
-- **Resilient Incremental Logging**: `results.jsonl`, `match_summaries.jsonl`, `decision_traces.jsonl` are written match-by-match to prevent data loss on API timeout.
-- CSV leaderboard export focusing on ROI and Chip Deltas
-- budget caps per run, provider, and model
-- LiteLLM multi-provider execution with exponential backoff retries
-- Gradio replay UI with real-time markdown extraction
+- Provider keys should be stored as Space Secrets, not hard-coded.
 
 ## License
 

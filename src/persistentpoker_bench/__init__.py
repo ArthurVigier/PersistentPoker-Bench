@@ -34,6 +34,7 @@ from persistentpoker_bench.interactive import (
     run_play_session,
 )
 from persistentpoker_bench.leaderboard import LeaderboardRow, build_leaderboard_rows, export_leaderboard_csv
+from persistentpoker_bench.local_models import LocalModelConfig, create_local_backend
 from persistentpoker_bench.live_play import LiveMatchController
 from persistentpoker_bench.memory_check import MemoryCheckResult, evaluate_memory
 from persistentpoker_bench.match_runner import MatchRunResult, MatchRunnerConfig, flatten_match_transcript, run_seeded_match
@@ -59,7 +60,12 @@ from persistentpoker_bench.replay import (
     serialize_hand_replay,
 )
 from persistentpoker_bench.retries import RetryPolicy
-from persistentpoker_bench.runtime_agents import LiteLLMRuntimeAgent, RuntimeDecisionEnvelope, runtime_envelope_to_dict
+from persistentpoker_bench.runtime_agents import (
+    LiteLLMRuntimeAgent,
+    LocalModelRuntimeAgent,
+    RuntimeDecisionEnvelope,
+    runtime_envelope_to_dict,
+)
 from persistentpoker_bench.schemas import (
     LLMDecision,
     WinnerPoolDecision,
@@ -96,6 +102,7 @@ from persistentpoker_bench.tournament import (
     serialize_match_record,
 )
 from persistentpoker_bench.web_ui import build_web_app
+from persistentpoker_bench.video_renderer import render_video_from_source
 
 __all__ = [
     "Action",
@@ -119,6 +126,8 @@ __all__ = [
     "FRONTIER_MODELS",
     "HandObserver",
     "LiteLLMRuntimeAgent",
+    "LocalModelConfig",
+    "LocalModelRuntimeAgent",
     "LeaderboardRow",
     "MatchRunResult",
     "MatchRunnerConfig",
@@ -164,6 +173,7 @@ __all__ = [
     "build_leaderboard_rows",
     "cards_to_notation",
     "create_hand_state",
+    "create_local_backend",
     "decision_example_payload",
     "decision_json_schema",
     "evaluate_hand",
@@ -200,6 +210,7 @@ __all__ = [
     "render_replay_summary_markdown",
     "build_match_replay",
     "build_web_app",
+    "render_video_from_source",
     "play_terminal_match",
     "standard_deck",
     "AggregateMetrics",

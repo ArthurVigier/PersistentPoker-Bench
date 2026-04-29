@@ -231,6 +231,7 @@ def run_seeded_hand(
                 {
                     "hand_id": hand_id,
                     "street": hand_state.street.value,
+                    "game_snapshot": game_snapshot,
                     "player_index": player_index,
                     "player_name": hand_state.players[player_index].name,
                     "provider": envelope.provider,

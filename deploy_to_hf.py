@@ -51,9 +51,9 @@ def deploy():
         )
 
     # 4. Upload des résultats du Marathon pour la démo
-    marathon_path = Path("artifacts/infernal-marathon-40-hands/decision_traces.jsonl")
+    marathon_path = Path("artifacts/infernal-marathon-40-hands/results.jsonl")
     if marathon_path.exists():
-        print("Uploading Marathon traces for public demo...")
+        print("Uploading Marathon results for public demo...")
         api.upload_file(
             path_or_fileobj=str(marathon_path),
             path_in_repo="marathon_demo.jsonl",

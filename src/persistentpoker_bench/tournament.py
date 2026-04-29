@@ -10,6 +10,7 @@ from persistentpoker_bench.hand_runner import DecisionAgent
 from persistentpoker_bench.match_runner import MatchRunResult, MatchRunnerConfig, run_seeded_match
 from persistentpoker_bench.metrics import AggregateMetrics, compute_match_metrics
 from persistentpoker_bench.model_registry import LeaderboardTrack, RegisteredModel
+from persistentpoker_bench.replay import build_match_replay
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,6 +206,7 @@ def append_match_record_to_jsonl(match_record: MatchRecord, path: str | Path) ->
 def append_match_summary_to_jsonl(match_record: MatchRecord, path: str | Path) -> None:
     payload = serialize_match_record(match_record)
     payload.pop("transcript", None)
+    payload.pop("replay", None)
     with Path(path).open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, sort_keys=True))
         handle.write("\n")
@@ -224,6 +226,11 @@ def append_decision_traces_to_jsonl(match_record: MatchRecord, path: str | Path)
 
 
 def serialize_match_record(match_record: MatchRecord) -> dict[str, Any]:
+    replay_payload = build_match_replay(
+        hand_results=match_record.match_result.hand_results,
+        session_config=None,
+        label=f"{match_record.lineup_id} | seed={match_record.seed}",
+    )
     return {
         "lineup_id": match_record.lineup_id,
         "track": match_record.track.value,
@@ -258,6 +265,7 @@ def serialize_match_record(match_record: MatchRecord) -> dict[str, Any]:
         "final_pool": list(match_record.match_result.final_pool),
         "final_stacks": list(match_record.match_result.final_stacks),
         "termination_reason": match_record.match_result.termination_reason,
+        "replay": replay_payload,
         "transcript": list(flatten_tournament_match_transcript(match_record)),
         "tiebreak_events": [
             {
@@ -293,6 +301,7 @@ def export_match_summaries_jsonl(
         for match_record in tournament_result.match_records:
             payload = serialize_match_record(match_record)
             payload.pop("transcript", None)
+            payload.pop("replay", None)
             handle.write(json.dumps(payload, sort_keys=True))
             handle.write("\n")
     return destination

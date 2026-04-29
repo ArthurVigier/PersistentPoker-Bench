@@ -22,6 +22,7 @@ from persistentpoker_bench.interactive import (
     run_play_session,
 )
 from persistentpoker_bench.leaderboard import build_leaderboard_rows, export_leaderboard_csv
+from persistentpoker_bench.local_models import LocalModelConfig, create_local_backend
 from persistentpoker_bench.match_runner import MatchRunnerConfig
 from persistentpoker_bench.model_registry import (
     DEFAULT_MODEL_REGISTRY,
@@ -32,7 +33,7 @@ from persistentpoker_bench.model_registry import (
 )
 from persistentpoker_bench.retries import RetryPolicy
 from persistentpoker_bench.replay import build_match_replay, export_match_replay_json
-from persistentpoker_bench.runtime_agents import LiteLLMRuntimeAgent
+from persistentpoker_bench.runtime_agents import LiteLLMRuntimeAgent, LocalModelRuntimeAgent
 from persistentpoker_bench.smoke import run_local_smoke_suite
 from persistentpoker_bench.spec import DEFAULT_DETERMINISTIC_SEED
 from persistentpoker_bench.testsupport import static_agent_factory
@@ -45,7 +46,7 @@ from persistentpoker_bench.tournament import (
     export_match_summaries_jsonl,
     run_tournament,
 )
-from persistentpoker_bench.web_ui import launch_web_app
+from persistentpoker_bench.video_renderer import render_video_from_source
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -87,6 +88,14 @@ def _build_parser() -> argparse.ArgumentParser:
     web_parser.add_argument("--share", action="store_true")
     web_parser.set_defaults(func=_cmd_web)
 
+    video_parser = subparsers.add_parser("video", help="Render a video from replay/results/run_summary artifacts.")
+    video_parser.add_argument("--input", required=True)
+    video_parser.add_argument("--output", required=True)
+    video_parser.add_argument("--fps", type=int, default=2)
+    video_parser.add_argument("--mode", choices=["auto", "action", "hand"], default="auto")
+    video_parser.add_argument("--title", default=None)
+    video_parser.set_defaults(func=_cmd_video)
+
     smoke_parser = subparsers.add_parser("smoke", help="Run a longer local smoke suite.")
     smoke_parser.add_argument("--outdir", required=True)
     smoke_parser.add_argument("--hands", type=int, default=8)
@@ -94,9 +103,10 @@ def _build_parser() -> argparse.ArgumentParser:
     smoke_parser.add_argument("--provider-hands", type=int, default=2)
     smoke_parser.add_argument("--seeds", default="20260428,20260429")
     smoke_parser.add_argument("--skip-web", action="store_true")
+    smoke_parser.add_argument("--load-env", action="store_true")
     smoke_parser.set_defaults(func=_cmd_smoke)
 
-    run_parser = subparsers.add_parser("run", help="Run a litellm-backed tournament from a JSON config.")
+    run_parser = subparsers.add_parser("run", help="Run a model-backed tournament from a JSON config.")
     run_parser.add_argument("--config", required=True)
     run_parser.add_argument("--outdir", required=True)
     run_parser.add_argument("--pool-state", type=str, help="Path to JSON file with card array to seed pool.", default=None)
@@ -211,6 +221,13 @@ def _cmd_web(args: argparse.Namespace) -> int:
     return 0
 
 
+def launch_web_app(*, host: str, port: int, share: bool) -> None:
+    from persistentpoker_bench.web_ui import build_web_app
+
+    demo = build_web_app()
+    demo.launch(server_name=host, server_port=port, share=share)
+
+
 def _cmd_smoke(args: argparse.Namespace) -> int:
     result = run_local_smoke_suite(
         outdir=args.outdir,
@@ -219,8 +236,21 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
         play_hands=args.play_hands,
         provider_hands=args.provider_hands,
         run_web_smoke=not bool(args.skip_web),
+        load_env=bool(args.load_env),
     )
     print(json.dumps(asdict(result), indent=2, sort_keys=True))
+    return 0
+
+
+def _cmd_video(args: argparse.Namespace) -> int:
+    output = render_video_from_source(
+        input_path=args.input,
+        output_path=args.output,
+        fps=int(args.fps),
+        mode=str(args.mode),
+        title=str(args.title) if args.title else None,
+    )
+    print(str(output))
     return 0
 
 
@@ -268,21 +298,13 @@ def _run_live_tournament_from_config(
                 initial_delay_seconds=float(entrant_payload.get("initial_delay_seconds", 0.25)),
                 backoff_multiplier=float(entrant_payload.get("backoff_multiplier", 2.0)),
             )
-            litellm_config = LiteLLMConfig(
-                model=entrant_payload.get("litellm_model", entrant_payload["model_id"]),
-                temperature=_optional_float(entrant_payload.get("temperature", 0.0)),
-                max_tokens=int(entrant_payload.get("max_tokens", 400)),
-                timeout=float(entrant_payload.get("timeout", 60.0)),
-                prefer_json_mode=bool(entrant_payload.get("prefer_json_mode", True)),
-                extra_kwargs=dict(entrant_payload.get("extra_kwargs", {})),
-            )
             entrants.append(
                 TournamentEntrant(
                     seat_name=entrant_payload["seat_name"],
                     registered_model=registered_model,
-                    agent_factory=_runtime_factory(
+                    agent_factory=_runtime_factory_from_payload(
                         provider=registered_model.provider,
-                        litellm_config=litellm_config,
+                        entrant_payload=entrant_payload,
                         retry_policy=retry_policy,
                     ),
                 )
@@ -313,9 +335,75 @@ def _run_live_tournament_from_config(
     )
 
 
+def _runtime_factory_from_payload(
+    *,
+    provider: str,
+    entrant_payload: dict[str, Any],
+    retry_policy: RetryPolicy,
+):
+    local_backend_name = entrant_payload.get("local_backend")
+    if local_backend_name is not None:
+        local_config = LocalModelConfig(
+            model=str(entrant_payload.get("local_model", entrant_payload["model_id"])),
+            backend=str(local_backend_name),
+            base_url=(
+                str(entrant_payload["base_url"])
+                if entrant_payload.get("base_url") is not None
+                else None
+            ),
+            api_key=(
+                str(entrant_payload["api_key"])
+                if entrant_payload.get("api_key") is not None
+                else None
+            ),
+            temperature=_optional_float(entrant_payload.get("temperature", 0.0)),
+            max_tokens=int(entrant_payload.get("max_tokens", 400)),
+            timeout=float(entrant_payload.get("timeout", 120.0)),
+            prefer_json_mode=bool(entrant_payload.get("prefer_json_mode", True)),
+            extra_kwargs=dict(entrant_payload.get("extra_kwargs", {})),
+            metadata=dict(entrant_payload.get("metadata", {})),
+        )
+        return _local_runtime_factory(
+            provider=provider,
+            local_config=local_config,
+            retry_policy=retry_policy,
+        )
+
+    litellm_config = LiteLLMConfig(
+        model=entrant_payload.get("litellm_model", entrant_payload["model_id"]),
+        temperature=_optional_float(entrant_payload.get("temperature", 0.0)),
+        max_tokens=int(entrant_payload.get("max_tokens", 400)),
+        timeout=float(entrant_payload.get("timeout", 60.0)),
+        prefer_json_mode=bool(entrant_payload.get("prefer_json_mode", True)),
+        extra_kwargs=dict(entrant_payload.get("extra_kwargs", {})),
+    )
+    return _runtime_factory(
+        provider=provider,
+        litellm_config=litellm_config,
+        retry_policy=retry_policy,
+    )
+
+
 def _runtime_factory(*, provider: str, litellm_config: LiteLLMConfig, retry_policy: RetryPolicy):
     def factory() -> LiteLLMRuntimeAgent:
         return LiteLLMRuntimeAgent(provider=provider, config=litellm_config, retry_policy=retry_policy)
+
+    return factory
+
+
+def _local_runtime_factory(
+    *,
+    provider: str,
+    local_config: LocalModelConfig,
+    retry_policy: RetryPolicy,
+):
+    def factory() -> LocalModelRuntimeAgent:
+        return LocalModelRuntimeAgent(
+            provider=provider,
+            config=local_config,
+            backend=create_local_backend(local_config.backend),
+            retry_policy=retry_policy,
+        )
 
     return factory
 

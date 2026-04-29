@@ -9,6 +9,11 @@ from persistentpoker_bench.adapters.litellm_adapter import (
     request_decision_via_litellm,
 )
 from persistentpoker_bench.hand_runner import DecisionAgent, DecisionEnvelope
+from persistentpoker_bench.local_models import (
+    LocalModelBackend,
+    LocalModelConfig,
+    request_decision_via_local_backend,
+)
 from persistentpoker_bench.prompting import PromptBundle
 from persistentpoker_bench.retries import RetryPolicy
 
@@ -52,6 +57,41 @@ class LiteLLMRuntimeAgent(DecisionAgent):
             model_id=self.config.model,
             latency_seconds=result.latency_seconds,
             usage=usage,
+        )
+
+
+@dataclass(slots=True)
+class LocalModelRuntimeAgent(DecisionAgent):
+    provider: str
+    config: LocalModelConfig
+    backend: LocalModelBackend
+    retry_policy: RetryPolicy | None = None
+
+    def decide(
+        self,
+        *,
+        prompt_bundle: PromptBundle,
+        game_snapshot: dict[str, Any],
+        legal_actions_snapshot: dict[str, Any],
+        player_index: int,
+        hand_state: Any,
+        persistent_pool: Any,
+    ) -> RuntimeDecisionEnvelope:
+        result = request_decision_via_local_backend(
+            prompt_bundle=prompt_bundle,
+            config=self.config,
+            backend=self.backend,
+            retry_policy=self.retry_policy,
+        )
+        return RuntimeDecisionEnvelope(
+            decision=result.decision,
+            raw_text=result.raw_text,
+            parse_mode=result.parse_mode,
+            attempts=result.attempts,
+            provider=self.provider,
+            model_id=self.config.model,
+            latency_seconds=result.latency_seconds,
+            usage=result.usage,
         )
 
 

@@ -29,6 +29,8 @@ def serialize_hand_replay(result: HandRunResult) -> dict[str, Any]:
     return {
         "hand_id": result.hand_id,
         "seed": result.seed,
+        "variant": result.hand_state.variant,
+        "pot_total": result.hand_state.pot_total,
         "starting_stacks_snapshot": list(result.starting_stacks_snapshot),
         "ending_stacks_snapshot": list(result.ending_stacks_snapshot),
         "persistent_pool_before": list(result.persistent_pool_before),
@@ -39,7 +41,8 @@ def serialize_hand_replay(result: HandRunResult) -> dict[str, Any]:
             {
                 "seat": player.seat,
                 "name": player.name,
-                "hole_cards": list(cards_to_notation(player.hole_cards)) if len(player.hole_cards) == 2 else [],
+                "hole_cards": list(cards_to_notation(player.hole_cards)) if player.hole_cards else [],
+                "up_cards": list(cards_to_notation(player.up_cards)) if player.up_cards else [],
                 "stack": player.stack,
                 "eliminated": player.eliminated,
                 "committed_total": player.committed_total,
@@ -141,9 +144,12 @@ def render_replay_hand_markdown(payload: dict[str, Any], hand_id: str) -> str:
         lines.append("")
         lines.append("Players:")
         for player in players:
+            visible_cards = player.get("hole_cards", [])
+            up_cards = player.get("up_cards", [])
+            card_text = " ".join(visible_cards + up_cards) or "- -"
             lines.append(
                 f"- P{int(player['seat']) + 1} {player['name']}: "
-                f"`{' '.join(player.get('hole_cards', [])) or '- -'}` | "
+                f"`{card_text}` | "
                 f"stack={player['stack']} | folded={player['folded']} | all_in={player['all_in']}"
             )
     tiebreaks = selected.get("tiebreak_events", [])
