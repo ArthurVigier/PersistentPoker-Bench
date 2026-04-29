@@ -258,24 +258,46 @@ def build_web_app():
             hand_idx = int(hand_name.split(" ")[1]) - 1
             hand_result = match_data["hand_results"][hand_idx]
             
+            # Gestion des deux formats : HandRunResult complet vs Événement Transcript isolé
+            # Si on a un événement isolé (marathon log), l'état peut ne pas être directement sous "hand_state"
+            if "hand_state" in hand_result:
+                state_data = hand_result["hand_state"]
+            else:
+                # Si le format est aplati (comme dans certains logs), on crée un state minimal
+                # basé sur les clés existantes
+                state_data = {
+                    "variant": hand_result.get("variant", "holdem"),
+                    "pot_total": 0,
+                    "community_cards": hand_result.get("believed_pool", []), # Approximation si manquant
+                    "players": []
+                }
+                # Fallback très basique pour éviter le crash
+                for i in range(4):
+                    state_data["players"].append({
+                        "name": f"Seat {i}",
+                        "stack": 0,
+                        "status": "active",
+                        "hole_cards": ["??", "??"]
+                    })
+            
             # On prépare les données simplifiées pour le moteur de rendu visuel
             viz_data = {
-                "variant": hand_result["hand_state"].get("variant", "holdem"),
-                "pot_total": hand_result["hand_state"].get("pot_total", 0),
-                "community_cards": hand_result["hand_state"].get("community_cards", []),
+                "variant": state_data.get("variant", "holdem"),
+                "pot_total": state_data.get("pot_total", 0),
+                "community_cards": state_data.get("community_cards", []),
                 "players": []
             }
             
-            for i, p in enumerate(hand_result["hand_state"]["players"]):
+            for i, p in enumerate(state_data.get("players", [])):
                 viz_data["players"].append({
-                    "name": p["name"],
-                    "stack": p["stack"],
+                    "name": p.get("name", f"Seat {i}"),
+                    "stack": p.get("stack", 0),
                     "status": "folded" if p.get("folded") else "active",
                     "hole_cards": p.get("hole_cards", ["??", "??"])
                 })
             
             # Rendu du Markdown textuel en dessous
-            markdown_summary = render_replay_hand_markdown(hand_result)
+            markdown_summary = render_replay_hand_markdown(hand_result) if "transcript" in hand_result else "Markdown replay not fully supported for raw trace logs."
             
             return render_visual_table(viz_data), markdown_summary
 
