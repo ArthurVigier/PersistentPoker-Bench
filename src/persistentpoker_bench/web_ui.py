@@ -228,13 +228,27 @@ def build_web_app():
         def on_load_file(file):
             if file is None: return None, gr.update(choices=[]), "No file selected"
             try:
-                # On supporte le format results.jsonl (on prend le premier match)
+                data = None
                 with open(file.name, "r") as f:
-                    first_line = f.readline()
-                    data = json.loads(first_line)
+                    for line in f:
+                        if not line.strip(): continue
+                        try:
+                            parsed = json.loads(line)
+                            # Support pour les deux formats historiques (hand_results ou transcript)
+                            if "hand_results" in parsed or "transcript" in parsed:
+                                data = parsed
+                        except json.JSONDecodeError:
+                            continue
                 
-                # Récupère les noms des mains pour le dropdown
-                hand_names = [f"Hand {i+1}" for i in range(len(data.get("hand_results", [])))]
+                if not data:
+                    return None, gr.update(choices=[]), "No valid match data found in file."
+
+                hands = data.get("hand_results", data.get("transcript", []))
+                hand_names = [f"Hand {i+1}" for i in range(len(hands))]
+                
+                # On normalise la clé pour que on_hand_change trouve toujours 'hand_results'
+                data["hand_results"] = hands 
+                
                 return data, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Match loaded: {len(hand_names)} hands."
             except Exception as e:
                 return None, gr.update(choices=[]), f"Error loading file: {e}"
@@ -270,11 +284,24 @@ def build_web_app():
             if not demo_path.exists():
                 return None, gr.update(choices=[]), "Demo file 'marathon_demo.jsonl' not found on the server."
             try:
+                data = None
                 with open(demo_path, "r") as f:
-                    first_line = f.readline()
-                    data = json.loads(first_line)
+                    for line in f:
+                        if not line.strip(): continue
+                        try:
+                            parsed = json.loads(line)
+                            if "hand_results" in parsed or "transcript" in parsed:
+                                data = parsed
+                        except json.JSONDecodeError:
+                            continue
+                            
+                if not data:
+                    return None, gr.update(choices=[]), "No valid match data found in demo file."
                 
-                hand_names = [f"Hand {i+1}" for i in range(len(data.get("hand_results", [])))]
+                hands = data.get("hand_results", data.get("transcript", []))
+                hand_names = [f"Hand {i+1}" for i in range(len(hands))]
+                data["hand_results"] = hands
+                
                 return data, gr.update(choices=hand_names, value=hand_names[0] if hand_names else None), f"Demo Marathon loaded: {len(hand_names)} hands."
             except Exception as e:
                 return None, gr.update(choices=[]), f"Error loading demo file: {e}"
