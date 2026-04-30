@@ -23,6 +23,7 @@ class MatchRunnerConfig:
     termination_rule: str = "hand_limit"
     starting_hand_number: int = 1
     initial_pool: tuple[str, ...] = ()
+    initial_stacks: tuple[int, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,7 +49,11 @@ def run_seeded_match(
         persistent_pool.cards.extend(parse_cards(list(config.initial_pool)))
         
     hand_results: list[HandRunResult] = []
-    current_stacks = [config.hand_runner_config.starting_stack for _ in player_names]
+    current_stacks = (
+        [config.hand_runner_config.starting_stack for _ in player_names]
+        if config.initial_stacks is None
+        else [int(stack) for stack in config.initial_stacks]
+    )
     current_button_index = config.initial_button_index % len(player_names)
     termination_reason = "hand_limit"
 
@@ -115,7 +120,11 @@ def run_seeded_match(
         seed=config.hand_runner_config.seed,
         hand_results=tuple(hand_results),
         final_pool=persistent_pool.notation_snapshot(),
-        initial_stacks=tuple(config.hand_runner_config.starting_stack for _ in player_names),
+        initial_stacks=(
+            tuple(config.hand_runner_config.starting_stack for _ in player_names)
+            if config.initial_stacks is None
+            else tuple(config.initial_stacks)
+        ),
         final_stacks=tuple(current_stacks),
         termination_reason=termination_reason,
     )

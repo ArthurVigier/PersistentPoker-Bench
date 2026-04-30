@@ -2,46 +2,32 @@
   "track": "frontier",
   "game_mode": "horse_v3_wall_street",
   "termination_rule": "hand_limit",
-  "horse_hands_per_game": 2,
+  "horse_hands_per_game": 8,
   "wall_street_slots": 4,
   "wall_street_price_multipliers": [1, 2, 3, 4],
   "allow_market_all_in": false,
-  "hand_count": 10,
   "seeds": [20260430],
+  "hand_count": 40,
   "base_seed": 0,
   "initial_button_index": 0,
   "budget_caps": {
-    "total_cost_cap": 30.0,
+    "total_cost_cap": 60.0,
     "per_provider_cap": {
-      "anthropic": 8.0,
-      "gemini": 8.0,
-      "mistral": 8.0,
-      "openai": 8.0,
-      "xai": 8.0
+      "anthropic": 20.0,
+      "gemini": 20.0,
+      "mistral": 20.0,
+      "xai": 20.0
     }
   },
   "lineups": [
     {
-      "lineup_id": "v3-wall-street-horse-frontier",
+      "lineup_id": "horse-v3-wall-street-marathon-no-openai",
       "entrants": [
         {
           "seat_name": "Mistral Large latest",
           "provider": "mistral",
           "model_id": "mistral-large-latest",
           "litellm_model": "mistral/mistral-large-latest",
-          "temperature": null,
-          "max_tokens": 1200,
-          "timeout": 240.0,
-          "max_attempts": 5,
-          "initial_delay_seconds": 2.0,
-          "backoff_multiplier": 2.0,
-          "prefer_json_mode": false
-        },
-        {
-          "seat_name": "OpenAI GPT-5.5",
-          "provider": "openai",
-          "model_id": "gpt-5.5",
-          "litellm_model": "openai/gpt-5.5",
           "temperature": null,
           "max_tokens": 1200,
           "timeout": 240.0,
@@ -74,6 +60,7 @@
           "max_attempts": 5,
           "initial_delay_seconds": 2.0,
           "backoff_multiplier": 2.0,
+          "prefer_json_mode": false,
           "extra_kwargs": {
             "thinking": {
               "type": "enabled",

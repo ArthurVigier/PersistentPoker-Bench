@@ -105,6 +105,7 @@ def run_tournament(
                 termination_rule=config.termination_rule,
                 starting_hand_number=config.match_config_template.starting_hand_number,
                 initial_pool=config.initial_pool,
+                initial_stacks=config.match_config_template.initial_stacks,
             )
             decision_agents = {
                 index: entrant.agent_factory() for index, entrant in enumerate(lineup.entrants)

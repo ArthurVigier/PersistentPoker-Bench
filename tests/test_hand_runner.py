@@ -163,6 +163,31 @@ def test_horse_foldout_awards_pot_without_card_evaluation() -> None:
     assert result.showdown_result.payouts[winner] == result.hand_state.pot_total
 
 
+def test_horse_razz_all_in_runs_out_cards_before_showdown() -> None:
+    decisions = [LLMDecision("all_in", None, (), WinnerPoolDecision.CONTINUE)] * 64
+    agents = {index: StaticDecisionAgent(list(decisions)) for index in range(3)}
+
+    result = run_seeded_hand(
+        player_names=["A", "B", "C"],
+        decision_agents=agents,
+        persistent_pool=PersistentPool(),
+        config=HandRunnerConfig(
+            seed=20260430,
+            game_mode="horse_v2",
+            horse_hands_per_game=1,
+            starting_stack=80,
+            small_blind=10,
+            big_blind=20,
+        ),
+        hand_number=3,
+    )
+
+    assert result.hand_state.variant == "razz"
+    assert result.showdown_result is not None
+    for player in result.hand_state.get_live_players():
+        assert len(player.hole_cards) + len(player.up_cards) >= 5
+
+
 def test_horse_rotation_hands_per_game_is_configurable() -> None:
     config = HandRunnerConfig(seed=20260429, game_mode="horse_v2", horse_hands_per_game=2)
     variants = []

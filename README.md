@@ -262,6 +262,7 @@ Supported local backend names:
 - If `persistentpoker-bench` is missing, re-run `pip install -r requirements.txt` inside the active venv.
 - If a provider reports missing credentials, confirm `.env` exists and contains the matching uppercase `*_API_KEY`.
 - If a model emits verbose text instead of JSON, set `prefer_json_mode: false` in its config; the parser still extracts a normalized decision.
+- If LiteLLM/provider routing is unclear, set `LITELLM_DEBUG=true` in `.env` or add `"litellm_debug": true` to one entrant config. This calls `litellm._turn_on_debug()` before requests.
 - If video rendering fails, confirm `matplotlib` and `Pillow` came from `requirements.txt`.
 - If a run is expensive, reduce `seeds`, `hand_count`, or add `budget_caps`.
 

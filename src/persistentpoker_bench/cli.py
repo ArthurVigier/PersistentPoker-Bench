@@ -33,6 +33,7 @@ from persistentpoker_bench.model_registry import (
 )
 from persistentpoker_bench.retries import RetryPolicy
 from persistentpoker_bench.replay import build_match_replay, export_match_replay_json
+from persistentpoker_bench.resume import build_resume_config_from_decision_traces
 from persistentpoker_bench.runtime_agents import LiteLLMRuntimeAgent, LocalModelRuntimeAgent
 from persistentpoker_bench.smoke import run_local_smoke_suite
 from persistentpoker_bench.spec import DEFAULT_DETERMINISTIC_SEED
@@ -115,6 +116,15 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--outdir", required=True)
     run_parser.add_argument("--pool-state", type=str, help="Path to JSON file with card array to seed pool.", default=None)
     run_parser.set_defaults(func=_cmd_run)
+
+    resume_parser = subparsers.add_parser(
+        "resume-config",
+        help="Build a new JSON config that resumes after completed hands in a partial outdir.",
+    )
+    resume_parser.add_argument("--config", required=True)
+    resume_parser.add_argument("--partial-outdir", required=True)
+    resume_parser.add_argument("--output", required=True)
+    resume_parser.set_defaults(func=_cmd_resume_config)
 
     return parser
 
@@ -272,7 +282,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
     _load_runtime_env(Path(".env"))
     config_payload = _expand_env_placeholders(json.loads(Path(args.config).read_text(encoding="utf-8")))
     outdir = Path(args.outdir)
-    initial_pool = ()
+    initial_pool = tuple(str(card) for card in config_payload.get("initial_pool", ()))
     if getattr(args, "pool_state", None):
         initial_pool = tuple(json.loads(Path(args.pool_state).read_text(encoding="utf-8")))
 
@@ -283,6 +293,28 @@ def _cmd_run(args: argparse.Namespace) -> int:
         initial_pool=initial_pool,
     )
     _export_release_artifacts(tournament_result, outdir, skip_jsonl=True)
+    return 0
+
+
+def _cmd_resume_config(args: argparse.Namespace) -> int:
+    _load_runtime_env(Path(".env"))
+    config_payload = _expand_env_placeholders(json.loads(Path(args.config).read_text(encoding="utf-8")))
+    resume_payload = build_resume_config_from_decision_traces(
+        config_payload=config_payload,
+        partial_outdir=Path(args.partial_outdir),
+    )
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(resume_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(
+        "[ppb] Resume config written | "
+        f"output={output} | "
+        f"starting_hand={resume_payload['starting_hand_number']} | "
+        f"remaining_hands={resume_payload['hand_count']} | "
+        f"initial_stacks={resume_payload['starting_stacks']} | "
+        f"pool={len(resume_payload['initial_pool'])}",
+        flush=True,
+    )
     return 0
 
 
@@ -310,6 +342,12 @@ def _run_live_tournament_from_config(
     allow_market_all_in = bool(payload.get("allow_market_all_in", False))
     hand_seed = int(payload.get("base_seed", 0))
     initial_button_index = int(payload.get("initial_button_index", 0))
+    starting_stacks_payload = payload.get("starting_stacks")
+    initial_stacks = (
+        None
+        if starting_stacks_payload is None
+        else tuple(int(stack) for stack in starting_stacks_payload)
+    )
     budget_caps = _parse_budget_caps(payload.get("budget_caps"))
 
     lineups = []
@@ -355,6 +393,7 @@ def _run_live_tournament_from_config(
                 termination_rule=termination_rule,
                 starting_hand_number=starting_hand_number,
                 initial_pool=initial_pool,
+                initial_stacks=initial_stacks,
             ),
             budget_caps=budget_caps,
             game_mode=game_mode,
@@ -407,6 +446,7 @@ def _runtime_factory_from_payload(
         timeout=float(entrant_payload.get("timeout", 60.0)),
         prefer_json_mode=bool(entrant_payload.get("prefer_json_mode", True)),
         extra_kwargs=dict(entrant_payload.get("extra_kwargs", {})),
+        debug=bool(entrant_payload.get("litellm_debug", False)),
     )
     return _runtime_factory(
         provider=provider,

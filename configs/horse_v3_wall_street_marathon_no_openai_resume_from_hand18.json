@@ -1,0 +1,156 @@
+{
+  "allow_market_all_in": false,
+  "base_seed": 0,
+  "budget_caps": {
+    "per_provider_cap": {
+      "anthropic": 20.0,
+      "gemini": 20.0,
+      "mistral": 20.0,
+      "xai": 20.0
+    },
+    "total_cost_cap": 60.0
+  },
+  "game_mode": "horse_v3_wall_street",
+  "hand_count": 23,
+  "horse_hands_per_game": 8,
+  "initial_button_index": 1,
+  "initial_pool": [
+    "6c",
+    "8c",
+    "2h",
+    "Qc",
+    "Ks",
+    "Ad",
+    "7h",
+    "5s",
+    "4h",
+    "9d",
+    "Kd",
+    "Kc",
+    "Jh",
+    "3c",
+    "9d",
+    "7s",
+    "7h",
+    "Qs",
+    "6d",
+    "4c",
+    "Qd",
+    "7s",
+    "Qh",
+    "8h",
+    "Ad",
+    "2c",
+    "8c",
+    "5d",
+    "Ks",
+    "3h",
+    "5d",
+    "6c",
+    "6d",
+    "9d",
+    "Ts",
+    "5h",
+    "Ad",
+    "7d",
+    "6s",
+    "Kc",
+    "3d",
+    "Kh",
+    "3h",
+    "3c",
+    "2c",
+    "4s",
+    "4h",
+    "8s",
+    "5c",
+    "2h",
+    "8h"
+  ],
+  "lineups": [
+    {
+      "entrants": [
+        {
+          "backoff_multiplier": 2.0,
+          "initial_delay_seconds": 2.0,
+          "litellm_model": "mistral/mistral-large-latest",
+          "max_attempts": 5,
+          "max_tokens": 1200,
+          "model_id": "mistral-large-latest",
+          "prefer_json_mode": false,
+          "provider": "mistral",
+          "seat_name": "Mistral Large latest",
+          "temperature": null,
+          "timeout": 240.0
+        },
+        {
+          "backoff_multiplier": 2.0,
+          "initial_delay_seconds": 2.0,
+          "litellm_model": "anthropic/claude-opus-4-7",
+          "max_attempts": 5,
+          "max_tokens": 1200,
+          "model_id": "claude-opus-4-7",
+          "prefer_json_mode": false,
+          "provider": "anthropic",
+          "seat_name": "Claude Opus 4.7",
+          "temperature": null,
+          "timeout": 300.0
+        },
+        {
+          "backoff_multiplier": 2.0,
+          "extra_kwargs": {
+            "thinking": {
+              "budget_tokens": 256,
+              "type": "enabled"
+            }
+          },
+          "initial_delay_seconds": 2.0,
+          "litellm_model": "gemini/gemini-3.1-pro-preview",
+          "max_attempts": 5,
+          "max_tokens": 1200,
+          "model_id": "gemini-3.1-pro",
+          "prefer_json_mode": false,
+          "provider": "gemini",
+          "seat_name": "Gemini 3.1 Pro",
+          "temperature": null,
+          "timeout": 300.0
+        },
+        {
+          "backoff_multiplier": 2.0,
+          "initial_delay_seconds": 2.0,
+          "litellm_model": "xai/grok-4.20-reasoning",
+          "max_attempts": 5,
+          "max_tokens": 1200,
+          "model_id": "grok-4.20-reasoning",
+          "prefer_json_mode": false,
+          "provider": "xai",
+          "seat_name": "xAI Grok 4.20",
+          "temperature": null,
+          "timeout": 300.0
+        }
+      ],
+      "lineup_id": "horse-v3-wall-street-marathon-no-openai"
+    }
+  ],
+  "resume_completed_hands": 17,
+  "resume_from": "artifacts/horse-v3-wall-street-marathon-no-openai-40-hands",
+  "seeds": [
+    20260430
+  ],
+  "starting_hand_number": 18,
+  "starting_stacks": [
+    1840,
+    1590,
+    2520,
+    2050
+  ],
+  "termination_rule": "hand_limit",
+  "track": "frontier",
+  "wall_street_price_multipliers": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "wall_street_slots": 4
+}

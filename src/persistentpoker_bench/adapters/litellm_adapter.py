@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from importlib import import_module
 from time import perf_counter
@@ -20,6 +21,7 @@ class LiteLLMConfig:
     prefer_json_mode: bool = True
     response_format: dict[str, Any] | None = None
     extra_kwargs: dict[str, Any] = field(default_factory=dict)
+    debug: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +53,7 @@ def request_decision_via_litellm(
 ) -> LiteLLMDecisionResult:
     policy = retry_policy or RetryPolicy()
     litellm_module = _load_litellm_module()
+    _enable_litellm_debug_if_requested(litellm_module, config)
 
     def operation() -> tuple[ParsedDecision, Any]:
         response = _call_litellm_completion(litellm_module, prompt_bundle, config)
@@ -82,6 +85,18 @@ def _load_litellm_module() -> Any:
         raise ImportError(
             "litellm is not installed. Install it with `pip install -e '.[llm]'`."
         ) from exc
+
+
+def _enable_litellm_debug_if_requested(litellm_module: Any, config: LiteLLMConfig) -> None:
+    if not (config.debug or _truthy_env("LITELLM_DEBUG")):
+        return
+    turn_on_debug = getattr(litellm_module, "_turn_on_debug", None)
+    if callable(turn_on_debug):
+        turn_on_debug()
+
+
+def _truthy_env(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _call_litellm_completion(

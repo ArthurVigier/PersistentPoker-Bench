@@ -102,3 +102,55 @@ def test_litellm_adapter_retries_parse_failures(monkeypatch) -> None:
     assert result.attempts == 2
     assert result.decision.action == "fold"
 
+
+def test_litellm_adapter_can_enable_debug_from_config(monkeypatch) -> None:
+    fake_module = ModuleType("litellm")
+    calls = {"debug": 0, "completion": 0}
+
+    def fake_turn_on_debug():
+        calls["debug"] += 1
+
+    def fake_completion(**kwargs):
+        calls["completion"] += 1
+        return FakeResponse(
+            '{"action":"check","amount":null,"believed_pool":[],"winner_pool_decision":"continue"}'
+        )
+
+    fake_module._turn_on_debug = fake_turn_on_debug
+    fake_module.completion = fake_completion
+    monkeypatch.setitem(sys.modules, "litellm", fake_module)
+    monkeypatch.delenv("LITELLM_DEBUG", raising=False)
+
+    result = request_decision_via_litellm(
+        prompt_bundle=_prompt_bundle(),
+        config=LiteLLMConfig(model="debug/test-model", debug=True),
+    )
+
+    assert result.decision.action == "check"
+    assert calls == {"debug": 1, "completion": 1}
+
+
+def test_litellm_adapter_can_enable_debug_from_env(monkeypatch) -> None:
+    fake_module = ModuleType("litellm")
+    calls = {"debug": 0}
+
+    def fake_turn_on_debug():
+        calls["debug"] += 1
+
+    def fake_completion(**kwargs):
+        return FakeResponse(
+            '{"action":"fold","amount":null,"believed_pool":[],"winner_pool_decision":"continue"}'
+        )
+
+    fake_module._turn_on_debug = fake_turn_on_debug
+    fake_module.completion = fake_completion
+    monkeypatch.setitem(sys.modules, "litellm", fake_module)
+    monkeypatch.setenv("LITELLM_DEBUG", "true")
+
+    result = request_decision_via_litellm(
+        prompt_bundle=_prompt_bundle(),
+        config=LiteLLMConfig(model="debug/env-model"),
+    )
+
+    assert result.decision.action == "fold"
+    assert calls["debug"] == 1

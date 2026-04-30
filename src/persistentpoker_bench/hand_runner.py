@@ -266,10 +266,18 @@ def run_seeded_hand(
                 if envelope.latency_seconds is not None
                 else "n/a"
             )
-            print(
-                f"[debug] {hand_state.players[player_index].name} decided {action.action_type.value} in {latency_text}",
-                flush=True,
-            )
+            if envelope.attempts == 0 and not envelope.parse_mode:
+                print(
+                    f"[debug] {hand_state.players[player_index].name} provider fallback -> "
+                    f"{action.action_type.value} | error={envelope.raw_text}",
+                    flush=True,
+                )
+            else:
+                print(
+                    f"[debug] {hand_state.players[player_index].name} decided "
+                    f"{action.action_type.value} in {latency_text}",
+                    flush=True,
+                )
             market_action = validate_or_fallback_market_action(
                 envelope.decision,
                 hand_state,
@@ -336,12 +344,7 @@ def run_seeded_hand(
             break
 
     if _is_horse_mode(hand_state.game_mode):
-        # In H.O.R.S.E modes, run out board/stud streets manually if all-in.
-        while hand_state.street is not Street.SHOWDOWN:
-            from persistentpoker_bench.horse.horse_runner import advance_horse_street
-            advance_horse_street(hand_state, hand_state.deck)
-            # Important: Clear pending actors when running out the board to avoid infinite prompts
-            hand_state.pending_actor_indices = ()
+        _run_out_horse_if_needed(hand_state)
     else:
         _run_out_board_if_needed(hand_state, full_board)
         
@@ -535,6 +538,44 @@ def _run_out_board_if_needed(hand_state: HandState, full_board: tuple[Card, ...]
         hand_state.set_community_cards(full_board[:5])
     hand_state.street = Street.SHOWDOWN
     hand_state.pending_actor_indices = ()
+
+
+def _run_out_horse_if_needed(hand_state: HandState) -> None:
+    if len(hand_state.live_player_indices) <= 1:
+        return
+    if hand_state.deck is None:
+        raise ValueError("HORSE showdown requires a live deck.")
+
+    if hand_state.variant in ("holdem", "omaha_8b"):
+        needed = 5 - len(hand_state.community_cards)
+        if needed > 0:
+            hand_state.community_cards += _draw_cards(hand_state.deck, needed)
+    else:
+        _complete_stud_style_runout(hand_state)
+
+    hand_state.street = Street.SHOWDOWN
+    hand_state.pending_actor_indices = ()
+
+
+def _complete_stud_style_runout(hand_state: HandState) -> None:
+    for player_index in hand_state.live_player_indices:
+        player = hand_state.players[player_index]
+        up_needed = 4 - len(player.up_cards)
+        if up_needed > 0:
+            player.up_cards += _draw_cards(hand_state.deck, up_needed)
+        down_needed = 3 - len(player.hole_cards)
+        if down_needed > 0:
+            player.hole_cards += _draw_cards(hand_state.deck, down_needed)
+
+
+def _draw_cards(deck: list[Card], count: int) -> tuple[Card, ...]:
+    if count < 0:
+        raise ValueError("Cannot draw a negative number of cards.")
+    if len(deck) < count:
+        raise ValueError("Deck exhausted before showdown runout.")
+    cards = tuple(deck[:count])
+    del deck[:count]
+    return cards
 
 
 def _resolve_terminal_hand(
