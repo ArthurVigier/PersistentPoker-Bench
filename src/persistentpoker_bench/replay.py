@@ -7,6 +7,7 @@ from typing import Any
 from persistentpoker_bench.cards import cards_to_notation
 from persistentpoker_bench.hand_runner import HandRunResult
 from persistentpoker_bench.interactive import PlaySessionConfig
+from persistentpoker_bench.wall_street import serialize_wall_street_market
 
 
 def serialize_hand_replay(result: HandRunResult) -> dict[str, Any]:
@@ -37,12 +38,15 @@ def serialize_hand_replay(result: HandRunResult) -> dict[str, Any]:
         "persistent_pool_after": list(result.persistent_pool_after),
         "winner_pool_decision": result.winner_pool_decision,
         "community_cards": list(cards_to_notation(result.hand_state.community_cards)),
+        "market": serialize_wall_street_market(result.hand_state.wall_street_market),
         "players": [
             {
                 "seat": player.seat,
                 "name": player.name,
                 "hole_cards": list(cards_to_notation(player.hole_cards)) if player.hole_cards else [],
                 "up_cards": list(cards_to_notation(player.up_cards)) if player.up_cards else [],
+                "market_cards": list(cards_to_notation(player.market_cards)) if player.market_cards else [],
+                "market_spend_total": player.market_spend_total,
                 "stack": player.stack,
                 "eliminated": player.eliminated,
                 "committed_total": player.committed_total,
@@ -139,6 +143,13 @@ def render_replay_hand_markdown(payload: dict[str, Any], hand_id: str) -> str:
     if isinstance(showdown, dict):
         lines.append(f"- Payouts: `{showdown.get('payouts')}`")
         lines.append(f"- Winners: `{showdown.get('winning_player_indices')}`")
+    market = selected.get("market")
+    if isinstance(market, dict) and market.get("wall_street"):
+        market_row = " ".join(
+            f"{slot.get('card')}@{slot.get('price')}"
+            for slot in market.get("wall_street", [])
+        )
+        lines.append(f"- Wall Street row: `{market_row}`")
     players = selected.get("players", [])
     if players:
         lines.append("")
@@ -146,10 +157,12 @@ def render_replay_hand_markdown(payload: dict[str, Any], hand_id: str) -> str:
         for player in players:
             visible_cards = player.get("hole_cards", [])
             up_cards = player.get("up_cards", [])
-            card_text = " ".join(visible_cards + up_cards) or "- -"
+            market_cards = player.get("market_cards", [])
+            card_text = " ".join(visible_cards + up_cards + market_cards) or "- -"
             lines.append(
                 f"- P{int(player['seat']) + 1} {player['name']}: "
                 f"`{card_text}` | "
+                f"market_spend={player.get('market_spend_total', 0)} | "
                 f"stack={player['stack']} | folded={player['folded']} | all_in={player['all_in']}"
             )
     tiebreaks = selected.get("tiebreak_events", [])

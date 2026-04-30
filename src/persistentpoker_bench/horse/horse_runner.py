@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
 from random import Random
-from typing import Any, Protocol
 
-from persistentpoker_bench.betting import apply_action, get_legal_actions, is_betting_round_complete
 from persistentpoker_bench.cards import Card, standard_deck
-from persistentpoker_bench.game_state import Action, ActionType, Street
+from persistentpoker_bench.game_state import Street
 from persistentpoker_bench.pool import PersistentPool
 from persistentpoker_bench.horse.variants import HorseVariant
 from persistentpoker_bench.horse.state import HorseHandState, HorsePlayerState
@@ -59,7 +55,8 @@ def determine_bring_in(state: HorseHandState) -> int:
         # Razz: Highest card brings in. (K is highest)
         highest_rank = -1
         for i, p in enumerate(state.players):
-            if p.eliminated or not p.up_cards: continue
+            if p.eliminated or not p.up_cards:
+                continue
             rank = p.up_cards[0].rank_value
             if rank > highest_rank:
                 highest_rank = rank
@@ -68,7 +65,8 @@ def determine_bring_in(state: HorseHandState) -> int:
         # Stud High: Lowest card brings in. (2 is lowest)
         lowest_rank = 15
         for i, p in enumerate(state.players):
-            if p.eliminated or not p.up_cards: continue
+            if p.eliminated or not p.up_cards:
+                continue
             rank = 14 if p.up_cards[0].rank_value == 1 else p.up_cards[0].rank_value
             if rank < lowest_rank:
                 lowest_rank = rank

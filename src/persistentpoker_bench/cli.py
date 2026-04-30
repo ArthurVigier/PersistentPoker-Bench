@@ -68,6 +68,10 @@ def _build_parser() -> argparse.ArgumentParser:
     demo_parser.add_argument("--hands", type=int, default=2)
     demo_parser.add_argument("--seeds", default="20260428")
     demo_parser.add_argument("--outdir", required=True)
+    demo_parser.add_argument("--game-mode", default="holdem")
+    demo_parser.add_argument("--horse-hands-per-game", type=int, default=8)
+    demo_parser.add_argument("--wall-street-slots", type=int, default=4)
+    demo_parser.add_argument("--wall-street-price-multipliers", default="1,2,3,4")
     demo_parser.set_defaults(func=_cmd_demo)
 
     play_parser = subparsers.add_parser("play", help="Play a live terminal match with one or more humans.")
@@ -147,9 +151,19 @@ def _cmd_demo(args: argparse.Namespace) -> int:
             track=track,
             seeds=tuple(seeds),
             match_config_template=MatchRunnerConfig(
-                hand_runner_config=HandRunnerConfig(seed=0),
+                hand_runner_config=HandRunnerConfig(
+                    seed=0,
+                    game_mode=str(args.game_mode),
+                    horse_hands_per_game=int(args.horse_hands_per_game),
+                    wall_street_slots=int(args.wall_street_slots),
+                    wall_street_price_multipliers=tuple(
+                        _parse_seeds(str(args.wall_street_price_multipliers))
+                    ),
+                ),
                 hand_count=args.hands,
+                game_mode=str(args.game_mode),
             ),
+            game_mode=str(args.game_mode),
         ),
         progress_callback=_build_cli_progress_reporter(),
     )
@@ -284,6 +298,16 @@ def _run_live_tournament_from_config(
     seeds = tuple(int(seed) for seed in payload["seeds"])
     hand_count = int(payload["hand_count"])
     starting_hand_number = int(payload.get("starting_hand_number", 1))
+    horse_hands_per_game = int(payload.get("horse_hands_per_game", 8))
+    wall_street_slots = int(payload.get("wall_street_slots", 4))
+    wall_street_price_multipliers = tuple(
+        int(value)
+        for value in payload.get(
+            "wall_street_price_multipliers",
+            payload.get("wall_street_prices", [1, 2, 3, 4]),
+        )
+    )
+    allow_market_all_in = bool(payload.get("allow_market_all_in", False))
     hand_seed = int(payload.get("base_seed", 0))
     initial_button_index = int(payload.get("initial_button_index", 0))
     budget_caps = _parse_budget_caps(payload.get("budget_caps"))
@@ -317,7 +341,14 @@ def _run_live_tournament_from_config(
             track=track,
             seeds=seeds,
             match_config_template=MatchRunnerConfig(
-                hand_runner_config=HandRunnerConfig(seed=hand_seed, game_mode=game_mode),
+                hand_runner_config=HandRunnerConfig(
+                    seed=hand_seed,
+                    game_mode=game_mode,
+                    horse_hands_per_game=horse_hands_per_game,
+                    wall_street_slots=wall_street_slots,
+                    wall_street_price_multipliers=wall_street_price_multipliers,
+                    allow_market_all_in=allow_market_all_in,
+                ),
                 hand_count=hand_count,
                 initial_button_index=initial_button_index,
                 game_mode=game_mode,
@@ -509,6 +540,8 @@ def _load_runtime_env(path: Path) -> None:
         ("gemini_api_key", "GEMINI_API_KEY"),
         ("google_api_key", "GOOGLE_API_KEY"),
         ("mistral_api_key", "MISTRAL_API_KEY"),
+        ("anthropic_api_key", "ANTHROPIC_API_KEY"),
+        ("claude_api_key", "ANTHROPIC_API_KEY"),
     )
     for alias, canonical in alias_pairs:
         if not os.getenv(canonical) and os.getenv(alias):

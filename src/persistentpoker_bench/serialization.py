@@ -6,6 +6,7 @@ from persistentpoker_bench.betting import LegalActionSet
 from persistentpoker_bench.cards import cards_to_notation
 from persistentpoker_bench.game_state import HandState
 from persistentpoker_bench.pool import PersistentPool
+from persistentpoker_bench.wall_street import serialize_wall_street_market
 
 
 def serialize_legal_actions(legal_actions: LegalActionSet) -> dict[str, Any]:
@@ -32,6 +33,8 @@ def serialize_hand_state(
 ) -> dict[str, Any]:
     return {
         "hand_id": hand_id,
+        "game_mode": hand_state.game_mode,
+        "variant": hand_state.variant,
         "street": hand_state.street.value,
         "button_index": hand_state.button_index,
         "actor_index": hand_state.actor_index,
@@ -40,6 +43,7 @@ def serialize_hand_state(
         "last_full_raise_size": hand_state.last_full_raise_size,
         "community_cards": list(cards_to_notation(hand_state.community_cards)),
         "persistent_pool": list(persistent_pool.notation_snapshot()),
+        "market": serialize_wall_street_market(hand_state.wall_street_market),
         "players": [
             _serialize_player(hand_state, player_index, acting_player_index)
             for player_index in range(len(hand_state.players))
@@ -64,6 +68,11 @@ def _serialize_player(
         "all_in": player.all_in,
         "is_self": player_index == acting_player_index,
     }
-    if player_index == acting_player_index and len(player.hole_cards) == 2:
+    if player_index == acting_player_index and player.hole_cards:
         payload["hole_cards"] = list(cards_to_notation(player.hole_cards))
+    if player.up_cards:
+        payload["up_cards"] = list(cards_to_notation(player.up_cards))
+    if player.market_cards:
+        payload["market_cards"] = list(cards_to_notation(player.market_cards))
+        payload["market_spend_total"] = player.market_spend_total
     return payload

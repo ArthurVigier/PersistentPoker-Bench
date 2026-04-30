@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from persistentpoker_bench.cards import Card
 from persistentpoker_bench.horse.variants import HorseVariant
 from persistentpoker_bench.game_state import Street

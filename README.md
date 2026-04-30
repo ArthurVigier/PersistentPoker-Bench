@@ -11,105 +11,162 @@ pinned: false
 
 # PersistentPoker-Bench
 
-PersistentPoker-Bench is an open benchmark for evaluating LLM agents in a
-path-dependent multiplayer poker environment. It stress-tests strategic
-reasoning, public-state memory, strict JSON compliance, cost-aware inference,
-and long-horizon robustness under a custom persistent-card pool.
+PersistentPoker-Bench is an open benchmark for evaluating LLM agents in
+path-dependent multiplayer poker environments. It stresses strategic reasoning,
+public-state memory, strict JSON compliance, cost-aware inference, hidden
+information discipline, and long-horizon robustness under custom poker variants.
 
 - Interactive Replay Studio: [Hugging Face Space](https://huggingface.co/spaces/Artvv/PersistentPoker-Bench)
 - Official Evaluation Logs: [Hugging Face Dataset](https://huggingface.co/datasets/Artvv/PersistentPoker-Bench-Data)
 
 ## What It Tests
 
-The benchmark combines ordinary poker pressure with agentic failure modes:
+- Persistent public memory: exposed cards accumulate across hands unless a winner resets the pool.
+- Belief tracking: every model reports `believed_pool`, preserving duplicate cards.
+- Protocol reliability: outputs must normalize to valid JSON and legal poker actions.
+- State governance: winners choose `reset` or `continue` for the next public pool.
+- Variant switching: H.O.R.S.E. rotates Hold'em, Omaha 8B, Razz, Stud, and Stud 8B.
+- Market reasoning: V3 adds a Wall Street row of priced public card assets.
+- Reproducibility: seeded tournaments emit JSONL artifacts, CSV leaderboards, replay JSON, and videos.
 
-- **Persistent public memory**: exposed cards accumulate across hands unless a winner chooses to reset the pool.
-- **Audited belief tracking**: every model must report `believed_pool`, preserving duplicate cards.
-- **Strict protocol reliability**: decisions must be valid JSON and legal poker actions.
-- **State governance**: winners choose whether the next hand inherits or clears the public pool.
-- **Variant switching**: H.O.R.S.E. mode rotates Hold'em, Omaha 8B, Razz, Stud, and Stud 8B.
-- **Resource awareness**: metrics track tokens, estimated cost, parsing success, memory accuracy, chips, and survival.
-- **Replayability**: seeded tournaments produce JSONL artifacts, visual replays, and video renders.
+## Game Modes
 
-## Key Findings
+- `holdem`: baseline persistent-pool Texas Hold'em.
+- `horse_v2`: H.O.R.S.E. backbone with persistent pool and configurable rotation.
+- `horse_v3_wall_street`: H.O.R.S.E. plus a Wall Street card market before betting actions.
 
-April 2026 frontier and efficiency runs surfaced several architectural lessons:
+## Repository Layout
 
-- **Reasoning can fight compliance**: stronger reasoning models may still lose benchmark value if verbose outputs break strict JSON.
-- **Reset is metacognition**: clearing the pool can be correct when public history becomes cognitively toxic.
-- **Rule switching is a real skill**: H.O.R.S.E. exposes catastrophic rule drift between highball, lowball, and stud-like regimes.
-- **ROI can beat win rate**: a model can win many hands while losing stack EV through passive calling or poor risk control.
+- `src/persistentpoker_bench/`: benchmark engine, adapters, CLI, replay, and video renderer.
+- `configs/`: runnable tournament configs.
+- `docs/`: formal rules, game-theory notes, architecture, local model notes, and V3 design.
+- `tests/`: pytest suite for engine, parser, CLI, replay, local models, and V3 market logic.
+- `hf_space/`: Hugging Face Space entrypoint.
+- `requirements.txt`: reproducible default install for GitHub and Spaces.
+- `.env.example`: local environment template with supported provider keys.
 
-## Current Capabilities
+## Clean Install
 
-- Game modes: `holdem` and `horse_v2`
-- Players: configurable from 3 to 6
-- Betting: no-limit actions, all-in handling, and side pots
-- Tracks: `frontier` and `efficiency`
-- Termination: fixed hand limit, first-bankrupt survival, and marathon-style configs
-- Runtimes: LiteLLM providers plus local open-source backends through `local_backend`
-- Visualization: Gradio replay studio and MP4 video renderer
-
-## Documentation
-
-Core project documents:
-
-- `docs/rules_v1_option_a.md`
-- `docs/horse_v2_topological_rules.md`
-- `docs/current_game_theoretic_framework.md`
-- `docs/local_open_models.md`
-- `docs/architecture.md`
-- `docs/tos_safety.md`
-
-## Model Roster
-
-The packaged registry includes frontier and efficiency entrants from OpenAI,
-xAI, Google/Gemini, Mistral, DeepSeek, and Qwen. Custom API, OpenRouter, and
-local open-source entrants can be supplied directly in JSON configs.
-
-## Roadmap
-
-1. Phase 0 - finalized rules, model registry, architecture, packaging
-2. Phase 1 - core game engine and hand evaluator
-3. Phase 2 - LLM integration through LiteLLM with strict JSON outputs
-4. Phase 3 - tournament orchestration and metrics
-5. Phase 4 - public release assets and demo
-6. Phase 5 - H.O.R.S.E variants, replay/video tooling, local model runtimes, and survival modes
-
-## Quick Start
+Use Python 3.11 or newer.
 
 ```bash
+git clone <repo-url>
+cd Poker-Bench
+
 python -m venv .venv
 source .venv/bin/activate
-pip install -e '.[dev,llm,ui]'
-pytest
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-## Common Workflows
-
-List benchmark models:
+Verify the install:
 
 ```bash
 persistentpoker-bench models
-persistentpoker-bench models --track frontier
+pytest -q
+python -m ruff check src tests
 ```
 
-Run a LiteLLM/API-backed tournament:
+## Environment
+
+Create a local `.env` from the template:
+
+```bash
+cp .env.example .env
+```
+
+Fill only the providers you plan to run:
+
+```bash
+OPENAI_API_KEY=...
+ANTHROPIC_API_KEY=...
+GEMINI_API_KEY=...
+MISTRAL_API_KEY=...
+XAI_API_KEY=...
+DEEPSEEK_API_KEY=...
+```
+
+The CLI loads `.env` automatically for `persistentpoker-bench run`. Lowercase
+aliases such as `claude_api_key` and `openai_api_key` are also normalized for
+convenience, but uppercase names are preferred for reproducibility.
+
+Never commit `.env`. The tracked template is `.env.example`.
+
+## Local No-API Smoke Runs
+
+Baseline demo:
+
+```bash
+persistentpoker-bench demo \
+  --track frontier \
+  --hands 2 \
+  --seeds 20260430 \
+  --outdir ./artifacts/demo-frontier
+```
+
+H.O.R.S.E. V3 Wall Street demo:
+
+```bash
+persistentpoker-bench demo \
+  --track frontier \
+  --hands 2 \
+  --seeds 20260430 \
+  --game-mode horse_v3_wall_street \
+  --horse-hands-per-game 2 \
+  --outdir ./artifacts/horse-v3-wall-street-demo
+```
+
+These demos use deterministic static agents, so they are safe for CI and do not
+consume API credits.
+
+## API-Backed Runs
+
+Classic H.O.R.S.E. V2 frontier run:
 
 ```bash
 persistentpoker-bench run \
-  --config ./configs/horse_v2_frontier_mistral_2026-04-29.json \
-  --outdir ./artifacts/horse-v2-run
+  --config ./configs/horse_v2_frontier_claude_diverse_2026-04-30.json \
+  --outdir ./artifacts/horse-v2-frontier-claude-diverse-2026-04-30
 ```
 
-Run a local open-source model through Ollama, vLLM, llama.cpp, or another
-OpenAI-compatible local server:
+Wall Street H.O.R.S.E. V3 frontier run:
+
+```bash
+persistentpoker-bench run \
+  --config ./configs/horse_v3_wall_street_claude_diverse_2026-04-30.json \
+  --outdir ./artifacts/horse-v3-wall-street-frontier-2026-04-30
+```
+
+Local open-source model smoke run:
 
 ```bash
 persistentpoker-bench run \
   --config ./configs/local/qwen3_ollama_smoke.json \
-  --outdir ./artifacts/local-qwen3-smoke
+  --outdir ./artifacts/local-qwen3-ollama-smoke
 ```
+
+## V3 Wall Street Decision Schema
+
+V3 keeps the existing betting schema and adds optional market fields. Models may
+omit the market action; the engine treats that as `pass_market`.
+
+```json
+{
+  "market_action": { "type": "buy_card", "slot": 0 },
+  "action": "call",
+  "amount": null,
+  "believed_pool": ["Ah", "Kd"],
+  "winner_pool_decision": "continue",
+  "reasoning": "The cheap card improves my low draw and denies opponent value."
+}
+```
+
+The engine records both `executed_market_action` and `executed_action` in the
+transcript. Market spend increases the pot without changing the player's current
+betting-street obligation, so ordinary `call` and `raise` logic remains stable.
+
+## Replay, Web UI, and Video
 
 Launch the replay studio:
 
@@ -117,70 +174,53 @@ Launch the replay studio:
 persistentpoker-bench web --host 127.0.0.1 --port 7860
 ```
 
-Render a benchmark video:
+Render a video from a run summary, replay, or JSONL artifact:
 
 ```bash
 persistentpoker-bench video \
-  --input ./artifacts/openai-xai-frontier-calibrated-2026-04-29/run_summary.json \
-  --output ./artifacts/openai-xai-frontier-calibrated-2026-04-29/frontier.mp4 \
+  --input ./artifacts/horse-v3-wall-street-frontier-2026-04-30/run_summary.json \
+  --output ./artifacts/horse-v3-wall-street-frontier-2026-04-30/v3.mp4 \
   --fps 2
 ```
 
-Play a terminal session with humans and bots:
+## Output Artifacts
 
-```bash
-persistentpoker-bench play \
-  --players "Alice,Bob,CPU1,CPU2" \
-  --human-seats 1,2 \
-  --hands 3 \
-  --seed 20260428
-```
+Tournament runs write:
 
-## Tournament Config Example
+- `results.jsonl`: full serialized match records.
+- `match_summaries.jsonl`: compact per-match summaries.
+- `decision_traces.jsonl`: per-decision raw output, normalized action, memory score, usage, and market action.
+- `leaderboard.csv`: model-level aggregate rows.
+- `run_summary.json`: artifact index.
 
-H.O.R.S.E. config with relaxed parsing for verbose reasoning models:
+Replay payloads include final stacks, board/up-cards, persistent pool before and
+after, transcript events, tiebreak events, and V3 market state when enabled.
+
+## Config Notes
+
+Important top-level config keys:
+
+- `track`: `frontier` or `efficiency`.
+- `game_mode`: `holdem`, `horse_v2`, or `horse_v3_wall_street`.
+- `seeds`: deterministic match seeds.
+- `hand_count`: hands per match.
+- `horse_hands_per_game`: number of hands before rotating to the next H.O.R.S.E. variant.
+- `budget_caps`: optional cost guardrails.
+- `lineups`: model/provider entrants.
+
+V3-specific keys:
 
 ```json
 {
-  "track": "frontier",
-  "game_mode": "horse_v2",
-  "termination_rule": "hand_limit",
-  "seeds": [20260429],
-  "hand_count": 5,
-  "base_seed": 0,
-  "budget_caps": {
-    "total_cost_cap": 25.0
-  },
-  "lineups": [
-    {
-      "lineup_id": "horse-v2-frontier",
-      "entrants": [
-        {
-          "seat_name": "Mistral Large",
-          "provider": "mistral",
-          "model_id": "mistral-large-latest",
-          "prefer_json_mode": false
-        },
-        {
-          "seat_name": "Gemini 3.1 Pro",
-          "provider": "gemini",
-          "model_id": "gemini-3.1-pro",
-          "extra_kwargs": {
-            "thinking": { "type": "enabled", "budget_tokens": 256 }
-          }
-        }
-      ]
-    }
-  ]
+  "wall_street_slots": 4,
+  "wall_street_price_multipliers": [1, 2, 3, 4],
+  "allow_market_all_in": false
 }
 ```
 
-For deep-reasoning models, `prefer_json_mode: false` can be useful when a
-provider rejects JSON mode or the model emits verbose hidden-reasoning style
-content. The parser still normalizes the final decision into the benchmark
-schema.
+## Local Model Backends
 
-Local model entrants use the same schema with an additional `local_backend`:
+Configs can target local models by adding `local_backend`:
 
 ```json
 {
@@ -200,27 +240,38 @@ Local model entrants use the same schema with an additional `local_backend`:
 }
 ```
 
-## Artifacts
+Supported local backend names:
 
-Runs can emit:
+- `ollama`
+- `vllm`
+- `llama_cpp`
+- `openai_compatible`
+- `transformers`
 
-- `results.jsonl`
-- `match_summaries.jsonl`
-- `decision_traces.jsonl`
-- `leaderboard.csv`
-- `run_summary.json`
-- replay JSON files
-- MP4 video renders
+## Documentation
 
-Decision traces include normalized actions, raw model text, parse mode,
-reported pool belief, memory scores, usage summaries, and local model metadata
-when available.
+- [H.O.R.S.E. V2 topological rules](docs/horse_v2_topological_rules.md)
+- [Current game-theoretic framework](docs/current_game_theoretic_framework.md)
+- [V3 Wall Street H.O.R.S.E. Persistent Poker](docs/v3_wall_street_horse_persistent/README.md)
+- [Local open models](docs/local_open_models.md)
+- [Architecture](docs/architecture.md)
+- [TOS and safety](docs/tos_safety.md)
 
-## Hugging Face Space
+## Troubleshooting
 
-- Space entrypoint: `hf_space/app.py`
-- Space dependencies: `requirements.txt`
-- Provider keys should be stored as Space Secrets, not hard-coded.
+- If `persistentpoker-bench` is missing, re-run `pip install -r requirements.txt` inside the active venv.
+- If a provider reports missing credentials, confirm `.env` exists and contains the matching uppercase `*_API_KEY`.
+- If a model emits verbose text instead of JSON, set `prefer_json_mode: false` in its config; the parser still extracts a normalized decision.
+- If video rendering fails, confirm `matplotlib` and `Pillow` came from `requirements.txt`.
+- If a run is expensive, reduce `seeds`, `hand_count`, or add `budget_caps`.
+
+## Development Checks
+
+```bash
+pytest -q
+python -m ruff check src tests
+python -m compileall -q src/persistentpoker_bench
+```
 
 ## License
 

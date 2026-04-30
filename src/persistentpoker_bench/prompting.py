@@ -43,6 +43,12 @@ def build_decision_prompt(
             variant_instructions += "Rules: Seven Card Stud High. Make the best 5-card high hand. There are no community cards, only individual up-cards and down-cards.\n"
         elif game_variant == "stud_8b":
             variant_instructions += "Rules: Seven Card Stud Hi-Lo 8-or-Better. Pot is split between best high and best qualifying low (8 or lower).\n"
+        if game_snapshot.get("market") is not None:
+            variant_instructions += (
+                "V3 Wall Street market is active: before your betting action you may optionally buy one visible priced card by returning "
+                "market_action={\"type\":\"buy_card\",\"slot\":<slot>} or pass with market_action={\"type\":\"pass_market\",\"slot\":null}. "
+                "Market prices go into the pot and bought cards are public in the transcript.\n"
+            )
 
     system_prompt = (
         "You are a PersistentPoker-Bench player agent.\n"
@@ -70,4 +76,3 @@ def build_decision_prompt(
         f"{json.dumps(payload, indent=2, sort_keys=True)}"
     )
     return PromptBundle(system_prompt=system_prompt, user_prompt=user_prompt)
-

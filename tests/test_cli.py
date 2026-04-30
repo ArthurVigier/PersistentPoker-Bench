@@ -70,6 +70,35 @@ def test_cli_demo_prints_progress_logs(tmp_path, capsys) -> None:
     assert "[ppb] Artifacts written" in captured.out
 
 
+def test_cli_demo_can_run_v3_wall_street_mode(tmp_path) -> None:
+    outdir = tmp_path / "demo-v3"
+
+    exit_code = main(
+        [
+            "demo",
+            "--track",
+            "frontier",
+            "--hands",
+            "1",
+            "--seeds",
+            "20260430",
+            "--game-mode",
+            "horse_v3_wall_street",
+            "--horse-hands-per-game",
+            "2",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    assert exit_code == 0
+    result_line = (outdir / "results.jsonl").read_text(encoding="utf-8").splitlines()[0]
+    payload = json.loads(result_line)
+    first_hand = payload["replay"]["hands"][0]
+    assert first_hand["variant"] == "holdem"
+    assert first_hand["market"]["wall_street"]
+
+
 def test_cli_play_config_writes_replay(tmp_path) -> None:
     config_path = tmp_path / "play_config.json"
     replay_path = tmp_path / "play_replay.json"

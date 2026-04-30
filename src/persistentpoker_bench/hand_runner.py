@@ -13,9 +13,16 @@ from persistentpoker_bench.pool import PersistentPool
 from persistentpoker_bench.prompting import build_decision_prompt
 from persistentpoker_bench.schemas import LLMDecision, WinnerPoolDecision
 from persistentpoker_bench.serialization import serialize_hand_state, serialize_legal_actions
-from persistentpoker_bench.showdown import ShowdownResult, resolve_showdown
+from persistentpoker_bench.showdown import ShowdownResult
 from persistentpoker_bench.spec import DEFAULT_DETERMINISTIC_SEED
 from persistentpoker_bench.tiebreak import D6TieBreaker, serialize_tiebreak_result
+from persistentpoker_bench.wall_street import (
+    apply_market_action,
+    create_wall_street_market,
+    purchased_market_cards,
+    serialize_legal_market_actions,
+    validate_or_fallback_market_action,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +33,10 @@ class HandRunnerConfig:
     small_blind: int = 10
     big_blind: int = 20
     game_mode: str = "holdem"
+    horse_hands_per_game: int = 8
+    wall_street_slots: int = 4
+    wall_street_price_multipliers: tuple[int, ...] = (1, 2, 3, 4)
+    allow_market_all_in: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,10 +132,9 @@ def run_seeded_hand(
     effective_starting_stacks = tuple(
         runner_config.starting_stack for _ in player_names
     ) if starting_stacks is None else tuple(int(stack) for stack in starting_stacks)
-    if runner_config.game_mode == "horse_v2":
+    if _is_horse_mode(runner_config.game_mode):
         from persistentpoker_bench.horse.rotation import HorseRotationManager
-        from persistentpoker_bench.horse.horse_runner import setup_horse_hand, advance_horse_street
-        variant_manager = HorseRotationManager()
+        variant_manager = HorseRotationManager(hands_per_game=runner_config.horse_hands_per_game)
         variant = variant_manager.get_current_variant(hand_number).value
     else:
         variant = "holdem"
@@ -144,20 +154,25 @@ def run_seeded_hand(
     if len(participating_indices) < 2:
         raise ValueError("A hand requires at least two non-eliminated players.")
 
-    if runner_config.game_mode == "horse_v2":
+    if _is_horse_mode(runner_config.game_mode):
         # Override deal logic for HORSE
         from persistentpoker_bench.cards import standard_deck
         deck = list(standard_deck())
         Random(runner_config.seed + hand_number).shuffle(deck)
         for player in hand_state.players:
-            if player.eliminated: continue
+            if player.eliminated:
+                continue
             if variant == "holdem":
-                player.hole_cards = tuple(deck[:2]); del deck[:2]
+                player.hole_cards = tuple(deck[:2])
+                del deck[:2]
             elif variant == "omaha_8b":
-                player.hole_cards = tuple(deck[:4]); del deck[:4]
+                player.hole_cards = tuple(deck[:4])
+                del deck[:4]
             else:
-                player.hole_cards = tuple(deck[:2]); del deck[:2]
-                player.up_cards = tuple(deck[:1]); del deck[:1]
+                player.hole_cards = tuple(deck[:2])
+                del deck[:2]
+                player.up_cards = tuple(deck[:1])
+                del deck[:1]
         hand_state.deck = deck  # Save deck for advancing streets
         # Initialisation du Stud
         if variant not in ("holdem", "omaha_8b"):
@@ -181,6 +196,16 @@ def run_seeded_hand(
         hand_state.deck = list(board)
         full_board = tuple(board)
 
+    if _is_wall_street_mode(runner_config.game_mode):
+        if hand_state.deck is None:
+            raise ValueError("Wall Street mode requires a live deck.")
+        hand_state.wall_street_market = create_wall_street_market(
+            hand_state.deck,
+            big_blind=runner_config.big_blind,
+            slot_count=runner_config.wall_street_slots,
+            price_multipliers=runner_config.wall_street_price_multipliers,
+        )
+
     transcript: list[dict[str, Any]] = []
     tie_breaker = D6TieBreaker(seed=runner_config.seed + hand_number, namespace=hand_id)
     _notify_hand_started(
@@ -200,6 +225,12 @@ def run_seeded_hand(
             player_index = hand_state.actor_index
             legal_actions = get_legal_actions(hand_state, player_index)
             legal_actions_snapshot = serialize_legal_actions(legal_actions)
+            if _is_wall_street_mode(runner_config.game_mode):
+                legal_actions_snapshot["market"] = serialize_legal_market_actions(
+                    hand_state,
+                    player_index,
+                    allow_market_all_in=runner_config.allow_market_all_in,
+                )
             game_snapshot = serialize_hand_state(
                 hand_state,
                 persistent_pool,
@@ -213,9 +244,14 @@ def run_seeded_hand(
                     "player_name": hand_state.players[player_index].name,
                     "seat": player_index,
                 },
-                game_variant=hand_state.variant if hand_state.game_mode == "horse_v2" else None,
+                game_variant=hand_state.variant if _is_horse_mode(hand_state.game_mode) else None,
             )
-            print(f"[debug] Requesting action from {hand_state.players[player_index].name} ({envelope.model_id if 'envelope' in locals() else 'starting...'})", flush=True)
+            agent = decision_agents[player_index]
+            agent_model = _agent_debug_model_id(agent)
+            print(
+                f"[debug] Requesting action from {hand_state.players[player_index].name} ({agent_model})",
+                flush=True,
+            )
             envelope, memory_result, action = _obtain_action(
                 decision_agents=decision_agents,
                 player_index=player_index,
@@ -225,7 +261,28 @@ def run_seeded_hand(
                 hand_state=hand_state,
                 persistent_pool=persistent_pool,
             )
-            print(f"[debug] {hand_state.players[player_index].name} decided {action.action_type.value} in {envelope.latency_seconds:.2f}s", flush=True)
+            latency_text = (
+                f"{envelope.latency_seconds:.2f}s"
+                if envelope.latency_seconds is not None
+                else "n/a"
+            )
+            print(
+                f"[debug] {hand_state.players[player_index].name} decided {action.action_type.value} in {latency_text}",
+                flush=True,
+            )
+            market_action = validate_or_fallback_market_action(
+                envelope.decision,
+                hand_state,
+                player_index,
+                allow_market_all_in=runner_config.allow_market_all_in,
+            )
+            market_result = apply_market_action(
+                hand_state,
+                player_index,
+                market_action,
+                allow_market_all_in=runner_config.allow_market_all_in,
+            )
+            action = _validate_or_fallback_action(envelope.decision, hand_state, player_index)
             apply_action(hand_state, player_index, action)
             transcript.append(
                 {
@@ -246,7 +303,10 @@ def run_seeded_hand(
                     "normalized_decision": {
                         "action": envelope.decision.action,
                         "amount": envelope.decision.amount,
+                        "market_action": envelope.decision.market_action,
+                        "market_slot": envelope.decision.market_slot,
                     },
+                    "executed_market_action": market_result,
                     "executed_action": {
                         "action": action.action_type.value,
                         "amount": action.amount,
@@ -265,7 +325,7 @@ def run_seeded_hand(
 
         if is_betting_round_complete(hand_state):
             old_street = hand_state.street.value
-            if hand_state.game_mode == "horse_v2":
+            if _is_horse_mode(hand_state.game_mode):
                 from persistentpoker_bench.horse.horse_runner import advance_horse_street
                 advance_horse_street(hand_state, hand_state.deck)
             else:
@@ -275,8 +335,8 @@ def run_seeded_hand(
         else:
             break
 
-    if hand_state.game_mode == "horse_v2":
-        # In V2, run out board is manual if all-in
+    if _is_horse_mode(hand_state.game_mode):
+        # In H.O.R.S.E modes, run out board/stud streets manually if all-in.
         while hand_state.street is not Street.SHOWDOWN:
             from persistentpoker_bench.horse.horse_runner import advance_horse_street
             advance_horse_street(hand_state, hand_state.deck)
@@ -293,9 +353,11 @@ def run_seeded_hand(
     )
     _award_payouts(hand_state, showdown_result)
     
-    if hand_state.game_mode == "horse_v2":
+    if _is_horse_mode(hand_state.game_mode):
         from persistentpoker_bench.horse.horse_runner import update_persistent_pool_from_horse
         update_persistent_pool_from_horse(hand_state, persistent_pool)
+        if _is_wall_street_mode(hand_state.game_mode):
+            persistent_pool.append_community_cards(purchased_market_cards(hand_state))
     else:
         persistent_pool.append_community_cards(full_board[:5])
         
@@ -330,6 +392,14 @@ def _deal_seeded_cards(*, seed: int, player_count: int) -> tuple[tuple[tuple[Car
     board_start = player_count * 2
     board = tuple(deck[board_start : board_start + 5])
     return hole_cards, board
+
+
+def _is_horse_mode(game_mode: str) -> bool:
+    return game_mode in {"horse_v2", "horse_v3_wall_street"}
+
+
+def _is_wall_street_mode(game_mode: str) -> bool:
+    return game_mode == "horse_v3_wall_street"
 
 
 def _obtain_action(
@@ -387,6 +457,20 @@ def _build_agent_error_envelope(
         latency_seconds=None,
         usage=None,
     )
+
+
+def _agent_debug_model_id(agent: Any) -> str:
+    config = getattr(agent, "config", None)
+    model = getattr(config, "model", None) if config is not None else None
+    if model:
+        return str(model)
+    model_id = getattr(agent, "model_id", None)
+    if model_id:
+        return str(model_id)
+    provider = getattr(agent, "provider", None)
+    if provider:
+        return str(provider)
+    return "static/local"
 
 
 def _validate_or_fallback_action(
@@ -459,34 +543,58 @@ def _resolve_terminal_hand(
     *,
     tie_breaker: D6TieBreaker,
 ) -> ShowdownResult | None:
-    if hand_state.game_mode == "horse_v2":
+    from persistentpoker_bench.showdown import resolve_showdown
+
+    live_indices = [i for i, p in enumerate(hand_state.players) if not p.folded and not p.eliminated]
+    if not live_indices:
+        return None
+    if len(live_indices) == 1:
+        winner = live_indices[0]
+        return ShowdownResult(
+            payouts=tuple(hand_state.pot_total if i == winner else 0 for i in range(len(hand_state.players))),
+            winning_player_indices=(winner,),
+            evaluated_hands={},
+            pot_allocations=(),
+            tiebreak_events=(),
+        )
+
+    if _is_horse_mode(hand_state.game_mode):
         from persistentpoker_bench.horse.evaluators import HorseEvaluator
-        from persistentpoker_bench.showdown import ShowdownResult
-        
-        live_indices = [i for i, p in enumerate(hand_state.players) if not p.folded and not p.eliminated]
-        if not live_indices: return None
-        
+
         variant = hand_state.variant
         best_player_idx = live_indices[0]
         
         if variant == "razz":
             best_score = None
             for i in live_indices:
-                score = HorseEvaluator.evaluate_razz(hand_state.players[i].hole_cards, hand_state.players[i].up_cards)
+                score = HorseEvaluator.evaluate_razz(
+                    hand_state.players[i].hole_cards + hand_state.players[i].market_cards,
+                    hand_state.players[i].up_cards,
+                )
                 if best_score is None or score < best_score:
                     best_score = score
                     best_player_idx = i
         elif variant == "omaha_8b":
             best_rank = None
             for i in live_indices:
-                eval_h = HorseEvaluator.evaluate_omaha(hand_state.players[i].hole_cards, hand_state.community_cards, persistent_pool.snapshot())
+                eval_h = HorseEvaluator.evaluate_omaha(
+                    hand_state.players[i].hole_cards,
+                    hand_state.community_cards,
+                    persistent_pool.snapshot() + hand_state.players[i].market_cards,
+                )
                 if best_rank is None or eval_h.sort_key > best_rank:
                     best_rank = eval_h.sort_key
                     best_player_idx = i
         else:
             best_rank = None
             for i in live_indices:
-                all_cards = hand_state.players[i].hole_cards + hand_state.players[i].up_cards + hand_state.community_cards + persistent_pool.snapshot()
+                all_cards = (
+                    hand_state.players[i].hole_cards
+                    + hand_state.players[i].up_cards
+                    + hand_state.players[i].market_cards
+                    + hand_state.community_cards
+                    + persistent_pool.snapshot()
+                )
                 from persistentpoker_bench.hand_evaluator import evaluate_hand
                 eval_h = evaluate_hand(all_cards)
                 if best_rank is None or eval_h.sort_key > best_rank:
@@ -501,22 +609,7 @@ def _resolve_terminal_hand(
             tiebreak_events=(),
         )
 
-    from persistentpoker_bench.showdown import resolve_showdown
     return resolve_showdown(hand_state, persistent_pool, tiebreaker=tie_breaker)
-    if len(live_players) == 1:
-        winner = live_players[0]
-        payouts = [0 for _ in hand_state.players]
-        payouts[winner] = hand_state.pot_total
-        return ShowdownResult(
-            payouts=tuple(payouts),
-            winning_player_indices=(winner,),
-            evaluated_hands={},
-            pot_allocations=(),
-            tiebreak_events=(),
-        )
-    if len(live_players) > 1:
-        return resolve_showdown(hand_state, persistent_pool, tiebreaker=tie_breaker)
-    return None
 
 
 def _award_payouts(hand_state: HandState, showdown_result: ShowdownResult | None) -> None:

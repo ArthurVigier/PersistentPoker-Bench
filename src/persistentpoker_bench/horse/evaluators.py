@@ -1,10 +1,8 @@
 from __future__ import annotations
 import itertools
-from typing import Any
 
 from persistentpoker_bench.cards import Card
 from persistentpoker_bench.hand_evaluator import evaluate_hand, EvaluatedHand
-from persistentpoker_bench.horse.variants import HorseVariant
 
 class HorseEvaluator:
     @staticmethod
@@ -100,4 +98,3 @@ class HorseEvaluator:
             
         ranks.sort(reverse=True)
         return tuple(ranks)
-

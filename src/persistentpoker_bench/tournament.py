@@ -92,6 +92,12 @@ def run_tournament(
                     small_blind=config.match_config_template.hand_runner_config.small_blind,
                     big_blind=config.match_config_template.hand_runner_config.big_blind,
                     game_mode=config.game_mode,
+                    horse_hands_per_game=config.match_config_template.hand_runner_config.horse_hands_per_game,
+                    wall_street_slots=config.match_config_template.hand_runner_config.wall_street_slots,
+                    wall_street_price_multipliers=(
+                        config.match_config_template.hand_runner_config.wall_street_price_multipliers
+                    ),
+                    allow_market_all_in=config.match_config_template.hand_runner_config.allow_market_all_in,
                 ),
                 hand_count=config.match_config_template.hand_count,
                 initial_button_index=config.match_config_template.initial_button_index,

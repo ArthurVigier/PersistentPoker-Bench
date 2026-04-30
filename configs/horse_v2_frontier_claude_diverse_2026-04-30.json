@@ -1,0 +1,97 @@
+{
+  "track": "frontier",
+  "game_mode": "horse_v2",
+  "termination_rule": "hand_limit",
+  "horse_hands_per_game": 2,
+  "seeds": [20260430, 20260501],
+  "hand_count": 10,
+  "base_seed": 0,
+  "initial_button_index": 0,
+  "budget_caps": {
+    "total_cost_cap": 50.0,
+    "per_provider_cap": {
+      "anthropic": 10.0,
+      "gemini": 10.0,
+      "mistral": 10.0,
+      "openai": 10.0,
+      "xai": 10.0
+    }
+  },
+  "lineups": [
+    {
+      "lineup_id": "horse-v2-frontier-claude-diverse",
+      "entrants": [
+        {
+          "seat_name": "Mistral Large latest",
+          "provider": "mistral",
+          "model_id": "mistral-large-latest",
+          "litellm_model": "mistral/mistral-large-latest",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 240.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "prefer_json_mode": false
+        },
+        {
+          "seat_name": "OpenAI GPT-5.5",
+          "provider": "openai",
+          "model_id": "gpt-5.5",
+          "litellm_model": "openai/gpt-5.5",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 240.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "prefer_json_mode": false
+        },
+        {
+          "seat_name": "Claude Opus 4.7",
+          "provider": "anthropic",
+          "model_id": "claude-opus-4-7",
+          "litellm_model": "anthropic/claude-opus-4-7",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "prefer_json_mode": false
+        },
+        {
+          "seat_name": "Gemini 3.1 Pro",
+          "provider": "gemini",
+          "model_id": "gemini-3.1-pro",
+          "litellm_model": "gemini/gemini-3.1-pro-preview",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "extra_kwargs": {
+            "thinking": {
+              "type": "enabled",
+              "budget_tokens": 256
+            }
+          }
+        },
+        {
+          "seat_name": "xAI Grok 4.20",
+          "provider": "xai",
+          "model_id": "grok-4.20-reasoning",
+          "litellm_model": "xai/grok-4.20-reasoning",
+          "temperature": null,
+          "max_tokens": 1024,
+          "timeout": 300.0,
+          "max_attempts": 5,
+          "initial_delay_seconds": 2.0,
+          "backoff_multiplier": 2.0,
+          "prefer_json_mode": false
+        }
+      ]
+    }
+  ]
+}

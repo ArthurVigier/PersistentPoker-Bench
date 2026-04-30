@@ -8,9 +8,9 @@ from persistentpoker_bench import (
 
 
 def test_frontier_and_efficiency_tracks_have_five_models_each() -> None:
-    assert len(FRONTIER_MODELS) == 5
-    assert len(EFFICIENCY_MODELS) == 5
-    assert len(DEFAULT_MODEL_REGISTRY) == 10
+    assert len(FRONTIER_MODELS) == 6
+    assert len(EFFICIENCY_MODELS) == 6
+    assert len(DEFAULT_MODEL_REGISTRY) == 12
 
 
 def test_frontier_track_uses_current_shortlist() -> None:
@@ -19,8 +19,9 @@ def test_frontier_track_uses_current_shortlist() -> None:
         "deepseek-v4-pro",
         "grok-4.20-reasoning",
         "qwen3-max",
-        "gemini-2.5-pro",
+        "gemini-3.1-pro",
         "gpt-5.5",
+        "mistral-large-latest",
     )
 
 

@@ -1,2 +1,22 @@
-litellm>=1.0.0
-gradio>=5.49.1
+# Reproducible default install for GitHub, local runs, and Hugging Face Spaces.
+# Python: 3.11+
+
+# Install this package and expose `persistentpoker-bench`.
+-e .
+
+# LLM provider runtime.
+litellm>=1.63.0,<2.0
+
+# Replay studio / web UI.
+gradio>=5.49.1,<6.0
+
+# Video rendering.
+matplotlib>=3.8,<4.0
+Pillow>=10.0,<12.0
+
+# Dataset / Space deployment helper scripts.
+huggingface_hub>=0.25.0,<1.0
+
+# Development and CI verification.
+pytest>=8.0,<9.0
+ruff>=0.5.0,<1.0

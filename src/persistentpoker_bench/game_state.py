@@ -77,12 +77,16 @@ class PlayerState:
     all_in: bool = False
     committed_total: int = 0
     committed_street: int = 0
+    market_cards: tuple[Card, ...] = ()
+    market_spend_total: int = 0
     acted_this_round: bool = False
     last_full_raise_epoch_seen: int = -1
 
     def reset_for_new_hand(self) -> None:
         self.hole_cards = ()
         self.up_cards = ()
+        self.market_cards = ()
+        self.market_spend_total = 0
         self.eliminated = self.stack <= 0
         self.folded = False
         self.all_in = False
@@ -116,6 +120,7 @@ class HandState:
     actor_index: int = 0
     pending_actor_indices: tuple[int, ...] = ()
     action_history: list[dict[str, object]] = field(default_factory=list)
+    wall_street_market: object | None = None
 
     def __post_init__(self) -> None:
         if len(self.players) != self.config.player_count:

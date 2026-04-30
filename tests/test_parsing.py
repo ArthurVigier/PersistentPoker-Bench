@@ -38,7 +38,43 @@ def test_parse_llm_decision_recovers_from_raw_text() -> None:
     assert parsed.decision.winner_pool_decision is WinnerPoolDecision.RESET
 
 
+def test_parse_llm_decision_accepts_nested_market_action() -> None:
+    parsed = parse_llm_decision(
+        """
+        {
+          "action": "call",
+          "amount": null,
+          "market_action": {"type": "buy_card", "slot": 2},
+          "believed_pool": ["Ah"],
+          "winner_pool_decision": "continue"
+        }
+        """
+    )
+
+    assert parsed.decision.action == "call"
+    assert parsed.decision.market_action == "buy_card"
+    assert parsed.decision.market_slot == 2
+
+
+def test_parse_llm_decision_accepts_flat_market_action() -> None:
+    parsed = parse_llm_decision(
+        """
+        {
+          "action": "check",
+          "amount": null,
+          "market_action": "pass_market",
+          "market_slot": null,
+          "believed_pool": [],
+          "winner_pool_decision": "reset"
+        }
+        """
+    )
+
+    assert parsed.decision.action == "check"
+    assert parsed.decision.market_action == "pass_market"
+    assert parsed.decision.market_slot is None
+
+
 def test_parse_llm_decision_rejects_missing_action() -> None:
     with pytest.raises(ValueError):
         parse_llm_decision("Believed_Pool: [Ah, Kd]")
-

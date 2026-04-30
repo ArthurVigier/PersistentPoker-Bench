@@ -103,6 +103,20 @@ from persistentpoker_bench.tournament import (
 )
 from persistentpoker_bench.web_ui import build_web_app
 from persistentpoker_bench.video_renderer import render_video_from_source
+from persistentpoker_bench.wall_street import (
+    BUY_CARD,
+    MARKET_ACTIONS,
+    PASS_MARKET,
+    MarketAction,
+    WallStreetMarketState,
+    WallStreetPurchase,
+    WallStreetSlot,
+    apply_market_action,
+    create_wall_street_market,
+    serialize_legal_market_actions,
+    serialize_wall_street_market,
+    validate_or_fallback_market_action,
+)
 
 __all__ = [
     "Action",
@@ -139,6 +153,8 @@ __all__ = [
     "HumanCommand",
     "HumanDecisionAgent",
     "LLMDecision",
+    "MARKET_ACTIONS",
+    "MarketAction",
     "LeaderboardTrack",
     "LiveMatchController",
     "MAX_PLAYER_COUNT",
@@ -149,6 +165,7 @@ __all__ = [
     "PlayerState",
     "PotAllocation",
     "PersistentPool",
+    "PASS_MARKET",
     "PassiveBotAgent",
     "PlaySeatKind",
     "PlaySeatSpec",
@@ -169,11 +186,17 @@ __all__ = [
     "TournamentResult",
     "TournamentRunnerConfig",
     "WinnerPoolDecision",
+    "WallStreetMarketState",
+    "WallStreetPurchase",
+    "WallStreetSlot",
+    "BUY_CARD",
+    "apply_market_action",
     "build_decision_prompt",
     "build_leaderboard_rows",
     "cards_to_notation",
     "create_hand_state",
     "create_local_backend",
+    "create_wall_street_market",
     "decision_example_payload",
     "decision_json_schema",
     "evaluate_hand",
@@ -204,7 +227,9 @@ __all__ = [
     "serialize_tiebreak_result",
     "serialize_match_record",
     "serialize_hand_state",
+    "serialize_legal_market_actions",
     "serialize_legal_actions",
+    "serialize_wall_street_market",
     "serialize_hand_replay",
     "render_replay_hand_markdown",
     "render_replay_summary_markdown",
@@ -213,5 +238,6 @@ __all__ = [
     "render_video_from_source",
     "play_terminal_match",
     "standard_deck",
+    "validate_or_fallback_market_action",
     "AggregateMetrics",
 ]

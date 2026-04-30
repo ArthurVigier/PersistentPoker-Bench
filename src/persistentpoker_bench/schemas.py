@@ -22,6 +22,8 @@ LLM_ACTIONS = (
     ActionType.ALL_IN.value,
 )
 
+MARKET_ACTIONS = ("pass_market", "buy_card")
+
 
 @dataclass(frozen=True, slots=True)
 class LLMDecision:
@@ -30,6 +32,8 @@ class LLMDecision:
     believed_pool: tuple[str, ...]
     winner_pool_decision: WinnerPoolDecision
     reasoning: str | None = None
+    market_action: str | None = None
+    market_slot: int | None = None
 
 
 def decision_json_schema() -> dict[str, Any]:
@@ -63,6 +67,38 @@ def decision_json_schema() -> dict[str, Any]:
                 "type": ["string", "null"],
                 "description": "Optional short audit note. Not scored.",
             },
+            "market_action": {
+                "description": "Optional V3 Wall Street market action. Omit or pass_market outside Wall Street games.",
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["type"],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": list(MARKET_ACTIONS),
+                            },
+                            "slot": {
+                                "type": ["integer", "null"],
+                                "minimum": 0,
+                            },
+                        },
+                    },
+                    {
+                        "type": "string",
+                        "enum": list(MARKET_ACTIONS),
+                    },
+                    {
+                        "type": "null",
+                    },
+                ],
+            },
+            "market_slot": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": "Backward-compatible flattened slot for market_action=buy_card.",
+            },
         },
     }
 
@@ -73,6 +109,7 @@ def decision_example_payload() -> dict[str, Any]:
         "amount": None,
         "believed_pool": ["Ah", "Kd", "Ah"],
         "winner_pool_decision": WinnerPoolDecision.CONTINUE.value,
+        "market_action": {"type": "pass_market", "slot": None},
         "reasoning": "Calling keeps dominated bluffs in range while preserving pool memory.",
     }
 
@@ -105,6 +142,7 @@ def normalize_decision_payload(payload: Mapping[str, Any]) -> LLMDecision:
 
     reasoning_raw = payload.get("reasoning")
     reasoning = None if reasoning_raw is None else str(reasoning_raw).strip() or None
+    market_action, market_slot = _normalize_market_payload(payload)
 
     return LLMDecision(
         action=action_raw,
@@ -112,6 +150,8 @@ def normalize_decision_payload(payload: Mapping[str, Any]) -> LLMDecision:
         believed_pool=cards_to_notation(believed_pool_cards),
         winner_pool_decision=winner_pool_decision,
         reasoning=reasoning,
+        market_action=market_action,
+        market_slot=market_slot,
     )
 
 
@@ -135,3 +175,23 @@ def _normalize_amount(amount: Any) -> int | None:
         raise ValueError(f"Amount is not an integer: {amount!r}")
     return int(amount_text)
 
+
+def _normalize_market_payload(payload: Mapping[str, Any]) -> tuple[str | None, int | None]:
+    market_raw = payload.get("market_action")
+    market_slot_raw = payload.get("market_slot")
+
+    if isinstance(market_raw, Mapping):
+        market_action = str(market_raw.get("type", "")).strip().lower()
+        market_slot_raw = market_raw.get("slot", market_slot_raw)
+    elif market_raw is None or market_raw == "":
+        market_action = None
+    else:
+        market_action = str(market_raw).strip().lower()
+
+    if market_action is not None and market_action not in MARKET_ACTIONS:
+        raise ValueError(f"Unsupported market_action: {market_action!r}")
+
+    market_slot = _normalize_amount(market_slot_raw)
+    if market_action != "buy_card":
+        market_slot = None
+    return market_action, market_slot

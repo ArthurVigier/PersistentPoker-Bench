@@ -138,3 +138,54 @@ def test_agent_exception_falls_back_without_crashing_hand() -> None:
     assert event["parse_mode"] == ""
     assert "synthetic parse failure" in event["raw_text"]
     assert event["executed_action"]["action"] in {"check", "call", "fold"}
+
+
+def test_horse_foldout_awards_pot_without_card_evaluation() -> None:
+    decisions = [
+        LLMDecision("raise", 40, (), WinnerPoolDecision.CONTINUE),
+        LLMDecision("fold", None, (), WinnerPoolDecision.CONTINUE),
+        LLMDecision("fold", None, (), WinnerPoolDecision.CONTINUE),
+        LLMDecision("fold", None, (), WinnerPoolDecision.CONTINUE),
+    ]
+    agents = {index: StaticDecisionAgent(decisions) for index in range(4)}
+
+    result = run_seeded_hand(
+        player_names=["A", "B", "C", "D"],
+        decision_agents=agents,
+        persistent_pool=PersistentPool(),
+        config=HandRunnerConfig(seed=20260429, game_mode="horse_v2"),
+        hand_number=3,
+    )
+
+    assert result.showdown_result is not None
+    assert len(result.showdown_result.winning_player_indices) == 1
+    winner = result.showdown_result.winning_player_indices[0]
+    assert result.showdown_result.payouts[winner] == result.hand_state.pot_total
+
+
+def test_horse_rotation_hands_per_game_is_configurable() -> None:
+    config = HandRunnerConfig(seed=20260429, game_mode="horse_v2", horse_hands_per_game=2)
+    variants = []
+
+    for hand_number in range(1, 11):
+        result = run_seeded_hand(
+            player_names=["A", "B", "C"],
+            decision_agents={index: StaticDecisionAgent(_passive_decisions() * 3) for index in range(3)},
+            persistent_pool=PersistentPool(),
+            config=config,
+            hand_number=hand_number,
+        )
+        variants.append(result.hand_state.variant)
+
+    assert variants == [
+        "holdem",
+        "holdem",
+        "omaha_8b",
+        "omaha_8b",
+        "razz",
+        "razz",
+        "stud",
+        "stud",
+        "stud_8b",
+        "stud_8b",
+    ]
